@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -30,6 +31,7 @@ export function UserTable({ users, subconverters }: UserTableProps) {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
+  const router = useRouter();
   
   // 使用TRPC获取所需数据
   const { data: nodeClientsWithUsers = [] } = api.nodeClient.getNodeClientsWithUsers.useQuery();
@@ -40,6 +42,7 @@ export function UserTable({ users, subconverters }: UserTableProps) {
     onSuccess: () => {
       toast.success("用户删除成功");
       setDeletingUser(null);
+      router.refresh();
     },
     onError: (error) => {
       toast.error(`删除失败: ${error.message}`);

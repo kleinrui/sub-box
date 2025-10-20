@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -36,12 +37,14 @@ interface NodeClientTableProps {
 export function NodeClientTable({ userId, nodeId, node, nodes, items, users }: NodeClientTableProps) {
   const [editingItem, setEditingItem] = useState<NodeClientWithUsers | null>(null);
   const [deletingItem, setDeletingItem] = useState<NodeClientWithUsers | null>(null);
+  const router = useRouter();
   
   // 使用TRPC mutation删除数据
   const deleteNodeClientMutation = api.nodeClient.delete.useMutation({
     onSuccess: () => {
       toast.success("删除成功");
       setDeletingItem(null);
+      router.refresh();
     },
     onError: (error) => {
       toast.error(`删除失败: ${error.message}`);

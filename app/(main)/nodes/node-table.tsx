@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -33,12 +34,14 @@ interface NodeTableProps {
 export function NodeTable({ nodes, users }: NodeTableProps) {
   const [editingItem, setEditingItem] = useState<NodeWithItems | null>(null);
   const [deletingItem, setDeletingItem] = useState<NodeWithItems | null>(null);
+  const router = useRouter();
   
   // 使用TRPC删除节点
   const deleteNodeMutation = api.node.delete.useMutation({
     onSuccess: () => {
       toast.success("节点删除成功");
       setDeletingItem(null);
+      router.refresh();
     },
     onError: (error) => {
       toast.error(`删除失败: ${error.message}`);

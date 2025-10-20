@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -27,12 +28,14 @@ interface ClashConfigTableProps {
 export function ClashConfigTable({ configs }: ClashConfigTableProps) {
   const [editingItem, setEditingItem] = useState<ClashConfig | null>(null);
   const [deletingItem, setDeletingItem] = useState<ClashConfig | null>(null);
+  const router = useRouter();
 
   // 使用TRPC mutation删除数据
   const deleteClashConfigMutation = api.clashConfig.delete.useMutation({
     onSuccess: () => {
       toast.success("删除成功");
       setDeletingItem(null);
+      router.refresh();
     },
     onError: (error) => {
       toast.error(`删除失败: ${error.message}`);
