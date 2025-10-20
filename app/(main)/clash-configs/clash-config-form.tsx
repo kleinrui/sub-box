@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { parse as parseYaml } from "yaml";
 import * as z from "zod";
@@ -55,10 +56,12 @@ interface ClashConfigFormProps {
 }
 
 export function ClashConfigForm({ config, onSuccess }: ClashConfigFormProps) {
+  const router = useRouter();
   // 使用TRPC mutations
   const createClashConfigMutation = api.clashConfig.create.useMutation({
     onSuccess: () => {
       toast.success("创建成功");
+      router.refresh();
       onSuccess?.();
     },
     onError: (error) => {
@@ -69,6 +72,7 @@ export function ClashConfigForm({ config, onSuccess }: ClashConfigFormProps) {
   const updateClashConfigMutation = api.clashConfig.update.useMutation({
     onSuccess: () => {
       toast.success("更新成功");
+      router.refresh();
       onSuccess?.();
     },
     onError: (error) => {

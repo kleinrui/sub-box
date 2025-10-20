@@ -88,46 +88,66 @@ class NodeClientService {
   }
 
   async setUserClientOptions(
-    nodeClientId: string, 
-    userIds: string[], 
-    defaultOptions: Partial<Omit<UserClientOption, "userId" | "nodeClientId" | "createdAt" | "updatedAt">> = {}
+    nodeClientId: string,
+    userIds: string[],
+    defaultOptions: Partial<Omit<UserClientOption, "userId" | "nodeClientId" | "createdAt" | "updatedAt">> = {},
+    replaceExisting = false
   ): Promise<void> {
     const db = await this.getDb();
     const now = new Date().toISOString();
 
-    // Delete all existing options if userIds is empty, otherwise delete only those not in the new list
-    if (userIds.length === 0) {
-      await db.delete(userClientOptions).where(eq(userClientOptions.nodeClientId, nodeClientId));
-      return;
+    // Replace mode: if replaceExisting is true
+    if (replaceExisting) {
+      if (userIds.length === 0) {
+        await db.delete(userClientOptions).where(eq(userClientOptions.nodeClientId, nodeClientId));
+        return;
+      }
+
+      // Delete existing options that are not in the new list
+      await db
+        .delete(userClientOptions)
+        .where(
+          and(
+            eq(userClientOptions.nodeClientId, nodeClientId),
+            not(inArray(userClientOptions.userId, userIds))
+          )
+        );
     }
 
-    // Delete existing options that are not in the new list
-    await db
-      .delete(userClientOptions)
-      .where(
-        and(
-          eq(userClientOptions.nodeClientId, nodeClientId),
-          not(inArray(userClientOptions.userId, userIds))
-        )
-      );
+    // Get existing options for this node client to determine which users already have records
+    const existingOptionsForClient = await this.getUserClientOptions(nodeClientId);
+    const existingUserIds = new Set(existingOptionsForClient.map(o => o.userId));
 
-    // Get existing options
-    const existingOptions = await this.getUserClientOptions(nodeClientId);
-    const existingUserIds = new Set(existingOptions.map(o => o.userId));
+    // Determine which users need new options
+    const newUserIds = userIds.filter(userId => !existingUserIds.has(userId));
 
-    // Create new options for users that don't have them
-    const newOptions = userIds
-      .filter(userId => !existingUserIds.has(userId))
-      .map((userId, index) => ({
+    if (newUserIds.length > 0) {
+      // Fetch all options for these users to compute next order per user
+      const allOptionsForNewUsers = await db
+        .select()
+        .from(userClientOptions)
+        .where(inArray(userClientOptions.userId, newUserIds));
+
+      const maxOrderByUser = new Map<string, number>();
+      for (const userId of newUserIds) {
+        maxOrderByUser.set(userId, -1);
+      }
+      for (const opt of allOptionsForNewUsers) {
+        const currentMax = maxOrderByUser.get(opt.userId) ?? -1;
+        if (opt.order > currentMax) {
+          maxOrderByUser.set(opt.userId, opt.order);
+        }
+      }
+
+      const newOptions = newUserIds.map((userId) => ({
         userId,
         nodeClientId,
         enable: defaultOptions.enable ?? true,
-        order: defaultOptions.order ?? existingOptions.length + index,
+        order: defaultOptions.order ?? (maxOrderByUser.get(userId)! + 1),
         createdAt: now,
         updatedAt: now,
       }));
 
-    if (newOptions.length > 0) {
       await db.insert(userClientOptions).values(newOptions);
     }
   }
@@ -189,6 +209,9 @@ class NodeClientService {
       .orderBy(userClientOptions.order);
 
     const clientIds = options.map(opt => opt.nodeClientId);
+    if (clientIds.length === 0) {
+      return [];
+    }
     const clients = await db
       .select()
       .from(nodeClients)

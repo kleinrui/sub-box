@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowUpDown } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -34,12 +35,14 @@ export function UserNodeClientTable({ userId, items, nodes, users }: UserNodeCli
   const [editingItem, setEditingItem] = useState<NodeClient & { users: { userId: string; enable: boolean; order: number }[] } | null>(null);
   const [deletingItem, setDeletingItem] = useState<NodeClient & { users: { userId: string; enable: boolean; order: number }[] } | null>(null);
   const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const router = useRouter();
   
   // 使用TRPC删除节点客户端
   const deleteNodeClientMutation = api.nodeClient.delete.useMutation({
     onSuccess: () => {
       toast.success("删除成功");
       setDeletingItem(null);
+      router.refresh();
     },
     onError: (error) => {
       toast.error(`删除失败: ${error.message}`);

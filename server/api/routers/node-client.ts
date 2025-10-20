@@ -76,12 +76,14 @@ export const nodeClientRouter = createTRPCRouter({
         enable: z.boolean().optional(),
         order: z.number().optional(),
       }).optional(),
+      replace: z.boolean().optional().default(false),
     }))
     .mutation(async ({ input }) => {
       await nodeClientService.setUserClientOptions(
-        input.nodeClientId, 
-        input.userIds, 
-        input.defaultOptions
+        input.nodeClientId,
+        input.userIds,
+        input.defaultOptions,
+        input.replace ?? false
       );
       return { success: true };
     }),

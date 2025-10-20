@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { CollapseDisplay } from "@/components/collapse-display";
@@ -33,6 +34,7 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
   const [step, setStep] = useState<1 | 2>(1);
   const [urls, setUrls] = useState("");
   const [items, setItems] = useState<ImportItem[]>([]);
+  const router = useRouter();
   
   const { data: nodeClients } = api.nodeClient.getNodeClientsWithUsers.useQuery();
   
@@ -154,13 +156,14 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
           );
           
           if (existing) {
-            // 更新用户选项
+            // 更新用户选项（替换为当前分组中的用户列表）
             await setUserClientOptionsMutation.mutateAsync({
               nodeClientId: existing.id,
               userIds: item.userOptions.map(opt => opt.userId),
               defaultOptions: {
                 enable: true
-              }
+              },
+              replace: true,
             });
             return existing;
           } else {
@@ -170,13 +173,14 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
               url: item.url
             });
             
-            // 设置用户选项
+            // 设置用户选项（仅添加，不替换其他可能并行存在的设置）
             await setUserClientOptionsMutation.mutateAsync({
               nodeClientId: newClient.id,
               userIds: item.userOptions.map(opt => opt.userId),
               defaultOptions: {
                 enable: true
-              }
+              },
+              replace: false,
             });
             return newClient;
           }
@@ -188,6 +192,7 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
         setStep(1);
         setUrls("");
         setItems([]);
+        router.refresh();
       } catch (error) {
         toast.error((error as Error).message);
       }

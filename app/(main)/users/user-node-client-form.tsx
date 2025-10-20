@@ -156,13 +156,14 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
       const newUserIds = values.userIds.filter(id => !existingUserIds.includes(id));
       
       if (newUserIds.length > 0) {
-        // 添加新用户
+        // 添加新用户（不替换已有用户）
         await setUserClientOptionsMutation.mutateAsync({
           nodeClientId: nodeClientId,
           userIds: newUserIds,
           defaultOptions: {
             enable: true
-          }
+          },
+          replace: false,
         });
       }
       
@@ -181,12 +182,12 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
       // 处理需要删除的用户（从item中移除的用户）
       const removedUserIds = existingUserIds.filter(id => !values.userIds.includes(id));
       if (removedUserIds.length > 0) {
-        // 这里我们需要删除这些用户与节点客户端的关联
-        // 由于setUserClientOptions会删除不在userIds中的关联，我们可以使用这个方法
+        // 删除不在列表中的用户（替换为表单中的最终列表）
         await setUserClientOptionsMutation.mutateAsync({
           nodeClientId: nodeClientId,
           userIds: values.userIds, // 只保留表单中选择的用户
-          defaultOptions: {} // 不改变默认选项
+          defaultOptions: {}, // 不改变默认选项
+          replace: true,
         });
       }
 
