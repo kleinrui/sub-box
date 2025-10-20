@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import * as z from "zod";
 
@@ -40,10 +41,12 @@ interface SubconverterFormProps {
 }
 
 export function SubconverterForm({ subconverter, onSuccess }: SubconverterFormProps) {
+  const router = useRouter();
   // 使用TRPC mutations
   const createSubconverterMutation = api.subconverter.create.useMutation({
     onSuccess: () => {
       toast.success("创建成功");
+      router.refresh();
       onSuccess?.();
     },
     onError: (error) => {
@@ -54,6 +57,7 @@ export function SubconverterForm({ subconverter, onSuccess }: SubconverterFormPr
   const updateSubconverterMutation = api.subconverter.update.useMutation({
     onSuccess: () => {
       toast.success("更新成功");
+      router.refresh();
       onSuccess?.();
     },
     onError: (error) => {

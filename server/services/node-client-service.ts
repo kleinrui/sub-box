@@ -88,28 +88,31 @@ class NodeClientService {
   }
 
   async setUserClientOptions(
-    nodeClientId: string, 
-    userIds: string[], 
-    defaultOptions: Partial<Omit<UserClientOption, "userId" | "nodeClientId" | "createdAt" | "updatedAt">> = {}
+    nodeClientId: string,
+    userIds: string[],
+    defaultOptions: Partial<Omit<UserClientOption, "userId" | "nodeClientId" | "createdAt" | "updatedAt">> = {},
+    replaceExisting = false
   ): Promise<void> {
     const db = await this.getDb();
     const now = new Date().toISOString();
 
-    // Delete all existing options if userIds is empty, otherwise delete only those not in the new list
-    if (userIds.length === 0) {
-      await db.delete(userClientOptions).where(eq(userClientOptions.nodeClientId, nodeClientId));
-      return;
-    }
+    // Replace mode: if replaceExisting is true
+    if (replaceExisting) {
+      if (userIds.length === 0) {
+        await db.delete(userClientOptions).where(eq(userClientOptions.nodeClientId, nodeClientId));
+        return;
+      }
 
-    // Delete existing options that are not in the new list
-    await db
-      .delete(userClientOptions)
-      .where(
-        and(
-          eq(userClientOptions.nodeClientId, nodeClientId),
-          not(inArray(userClientOptions.userId, userIds))
-        )
-      );
+      // Delete existing options that are not in the new list
+      await db
+        .delete(userClientOptions)
+        .where(
+          and(
+            eq(userClientOptions.nodeClientId, nodeClientId),
+            not(inArray(userClientOptions.userId, userIds))
+          )
+        );
+    }
 
     // Get existing options for this node client to determine which users already have records
     const existingOptionsForClient = await this.getUserClientOptions(nodeClientId);
