@@ -29,22 +29,17 @@ interface LoginAttempt {
 
 const loginAttempts = new Map<string, LoginAttempt>();
 
-// Clean up old entries periodically
-setInterval(
-  () => {
-    const now = Date.now();
-    for (const [ip, attempt] of loginAttempts.entries()) {
-      if (attempt.blockedUntil && attempt.blockedUntil < now) {
-        loginAttempts.delete(ip);
-      } else if (!attempt.blockedUntil && now - attempt.firstAttempt > RATE_LIMIT_WINDOW) {
-        loginAttempts.delete(ip);
-      }
+function cleanupExpiredAttempts() {
+  const now = Date.now();
+  for (const [ip, attempt] of loginAttempts.entries()) {
+    if (attempt.blockedUntil && attempt.blockedUntil < now) {
+      loginAttempts.delete(ip);
+    } else if (!attempt.blockedUntil && now - attempt.firstAttempt > RATE_LIMIT_WINDOW) {
+      loginAttempts.delete(ip);
     }
-  },
-  5 * 60 * 1000
-); // Clean up every 5 minutes
+  }
+}
 
-// Rate limiting functions
 function isIPBlocked(ip: string): boolean {
   const attempt = loginAttempts.get(ip);
   if (!attempt) return false;
@@ -94,7 +89,8 @@ function resetAttempts(ip: string) {
 }
 
 export async function login(username: string, password: string, ip: string) {
-  // Check if IP is blocked
+  cleanupExpiredAttempts();
+
   if (isIPBlocked(ip)) {
     throw new Error("IP is temporarily blocked due to too many failed attempts");
   }
