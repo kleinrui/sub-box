@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sub-box",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-06",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "minify": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "sub-box"
+    }
+  ],
+  // 同一账号要跑多份实例时，同时改 name 和上面的 service
+  "vars": {
+    "ADMIN_USERNAME": "admin",
+    "SESSION_TAG": "0",
+    "SESSION_DURATION": "2592000",
+    "DEPLOY_TARGET": "cloudflare"
+  },
+  "secrets": {
+    "required": ["ADMIN_PASSWORD", "JWT_SECRET"]
+  },
+  // 不要填写 database_id。首次部署会自动创建 D1，Git / Dashboard 部署时 ID 留在 Cloudflare，不会写回仓库。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "sub-box-db"
+    }
+  ],
+  "observability": {
+    "logs": {
+      "enabled": true
+    }
+  }
+}

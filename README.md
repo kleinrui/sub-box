@@ -36,53 +36,60 @@ Tips：创建节点时若填入 IP，在创建节点客户端时可用“覆盖�
 
 ## 部署
 
-### 部署到 Cloudflare
+### 一键部署到 Cloudflare
 
-仅需几分钟即可部署到 Cloudflare worker 上，适用于小规模自用。
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/kleinrui/sub-box)
 
-首先，复制配置文件：
+### 命令行部署
 
 ```bash
-cp wrangler.example.toml wrangler.toml
+git clone https://github.com/kleinrui/sub-box.git
+cd sub-box
 cp .dev.vars.example .dev.vars
 ```
 
-安装依赖：
+编辑 `.dev.vars` 中的 `ADMIN_PASSWORD`，并用 `openssl rand -base64 32` 生成 `JWT_SECRET`。
 
 ```bash
 bun install
+bun run build:worker
 ```
 
-在 Cloudflare D1 中创建一个数据库（这里以 `prod-sub-box-db` 作为 database_name）：
+首次部署需要把运行时密钥一起上传（不要把整个 `.dev.vars` 当作 secrets 文件，里面可能有 Cloudflare API token）：
 
 ```bash
-bun wrangler d1 create prod-sub-box-db
+cat > secrets.env << EOF
+ADMIN_PASSWORD=你的管理员密码
+JWT_SECRET=$(openssl rand -base64 32)
+EOF
+
+bunx wrangler deploy --secrets-file secrets.env
+bun d1:migrate:remote
+rm secrets.env
 ```
 
-创建完成后会给出一个 `database_id`，将其填入 `wrangler.toml` 中。
+本机 `wrangler deploy` 可能会把 `database_id` 写回 `wrangler.jsonc`。还原该文件，不要提交。
 
-需要修改 `wrangler.toml` 中的以下字段：
-
-- `database_name`（如果你更改了数据库名称）
-- `database_id`
-- `ADMIN_USERNAME`
-- `ADMIN_PASSWORD`
-- `JWT_SECRET`（自行随机生成的字符串，可运行 `openssl rand -base64 32` 生成）
-
-最后，部署应用程序：
+之后更新：
 
 ```bash
-DATABASE_NAME=prod-sub-box-db bun d1:migrate:remote
+git pull
+bun install
 bun run deploy
 ```
 
-请注意，你需要使用 Node.js v22 版本。Node.js v23 及以上版本可能会导致 build 报错。本地开发使用 Bun，代码检查与格式化使用 Biome（`bun run lint` / `bun run format`）。
+### 用 Git 连接 Cloudflare
+
+1. Fork 本仓库，或新建 private 副本并添加 `upstream`。
+2. 在 Cloudflare Dashboard 把仓库连接到 Worker。
+3. 在 **Settings → Variables and Secrets** 中添加 Secret：`ADMIN_PASSWORD`、`JWT_SECRET`。
+4. 推送或 Sync fork 后会自动构建部署。D1 按 `wrangler.jsonc` 自动创建，ID 不会写回仓库。
 
 ### 本地开发
 
 ```bash
-cp wrangler.example.toml wrangler.toml
 cp .dev.vars.example .dev.vars
-DATABASE_NAME=prod-sub-box-db bun d1:migrate:local
+bun install
+bun d1:migrate:local
 bun dev
 ```

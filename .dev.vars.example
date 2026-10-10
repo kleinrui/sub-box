@@ -1,11 +1,13 @@
 NEXTJS_ENV=development
 
+# drizzle-kit 远程操作才需要，不会部署到 Worker
 CLOUDFLARE_ACCOUNT_ID='x'
 CLOUDFLARE_D1_DATABASE_ID='x'
 CLOUDFLARE_TOKEN='x'
 DEPLOY_TARGET=cloudflare
 
 ADMIN_USERNAME=admin
+# 生产环境请用 wrangler secret / Dashboard Secrets，不要写进 wrangler.jsonc
 ADMIN_PASSWORD=your-secure-password
 JWT_SECRET=your-secret-key-should-be-very-long-and-random
 SESSION_TAG=0

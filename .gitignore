@@ -52,6 +52,8 @@ data
 
 .open-next
 .dev.vars
+secrets.env
+# 本地残留的旧配置；仓库里的公开配置是 wrangler.jsonc
 wrangler.toml
 wrangler.json
 .wrangler

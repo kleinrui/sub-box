@@ -59,4 +59,4 @@ fix(auth): 登录失败次数超限后返回 429
 chore(tooling): 用 Biome 替换 ESLint 和 Prettier
 ```
 
-不要提交 `.env`、`.dev.vars`、`wrangler.toml` 或其它密钥文件。未经明确要求不要 `git commit`、不要 `git push`。
+`wrangler.jsonc` 是公开配置，应当提交，且不得写入密码或个人 `database_id`。不要提交 `.env`、`.dev.vars`、`secrets.env` 或其它密钥文件。未经明确要求不要 `git commit`、不要 `git push`。

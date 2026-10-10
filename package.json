@@ -2,6 +2,16 @@
   "name": "sub-box",
   "version": "0.1.0",
   "private": true,
+  "cloudflare": {
+    "bindings": {
+      "ADMIN_PASSWORD": {
+        "description": "管理员登录密码"
+      },
+      "JWT_SECRET": {
+        "description": "用于签发登录会话的密钥，可用 openssl rand -base64 32 生成"
+      }
+    }
+  },
   "scripts": {
     "db:up": "bun with-env drizzle-kit up",
     "db:generate": "bun with-env drizzle-kit generate",
@@ -12,8 +22,8 @@
     "db:check": "bun with-env drizzle-kit check",
     "db:studio": "bun with-env drizzle-kit studio",
     "db:studio:local": "bun with-env bun with-local-db drizzle-kit studio --config drizzle.local.config.ts",
-    "d1:migrate:local": "cross-env DATABASE_NAME=prod-sub-box-db wrangler d1 migrations apply $DATABASE_NAME --local",
-    "d1:migrate:remote": "cross-env DATABASE_NAME=prod-sub-box-db wrangler d1 migrations apply $DATABASE_NAME --remote",
+    "d1:migrate:local": "wrangler d1 migrations apply DB --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "dev": "bun with-env next dev",
     "build": "bun with-env next build",
     "lint": "biome check .",
