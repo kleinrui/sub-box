@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { exportDataSchema } from "@/lib/export-data";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { type ExportData, exportService } from "@/server/services/export-service";
+import { exportService } from "@/server/services/export-service";
 
 export const exportRouter = createTRPCRouter({
   exportAll: protectedProcedure.query(async () => {
@@ -10,7 +11,7 @@ export const exportRouter = createTRPCRouter({
   importAll: protectedProcedure
     .input(
       z.object({
-        data: z.custom<ExportData>((_data) => true), // 自定义校验器，接受ExportData类型
+        data: exportDataSchema,
         options: z
           .object({
             skipExisting: z.boolean().default(true),

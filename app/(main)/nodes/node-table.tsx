@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -31,6 +32,8 @@ interface NodeTableProps {
 }
 
 export function NodeTable({ nodes, users }: NodeTableProps) {
+  const router = useRouter();
+  const utils = api.useUtils();
   const [editingItem, setEditingItem] = useState<NodeWithItems | null>(null);
   const [deletingItem, setDeletingItem] = useState<NodeWithItems | null>(null);
 
@@ -38,6 +41,9 @@ export function NodeTable({ nodes, users }: NodeTableProps) {
   const deleteNodeMutation = api.node.delete.useMutation({
     onSuccess: () => {
       toast.success("节点删除成功");
+      void utils.node.invalidate();
+      void utils.nodeClient.invalidate();
+      router.refresh();
       setDeletingItem(null);
     },
     onError: (error) => {
@@ -46,6 +52,7 @@ export function NodeTable({ nodes, users }: NodeTableProps) {
   });
 
   function onDelete(item: NodeWithItems) {
+    if (deleteNodeMutation.isPending) return;
     deleteNodeMutation.mutate(item.id);
   }
 
@@ -71,16 +78,19 @@ export function NodeTable({ nodes, users }: NodeTableProps) {
         <NodeForm node={editingItem ?? undefined} onSubmitSuccess={() => setEditingItem(null)} />
       </PopupSheet>
 
-      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && setDeletingItem(null)}>
-        <AlertDialogContent>
+      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && !deleteNodeMutation.isPending && setDeletingItem(null)}>
+        <AlertDialogContent onEscapeKeyDown={(event) => deleteNodeMutation.isPending && event.preventDefault()}>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>确定要删除节点 {deletingItem?.name} 吗？此操作不可撤销。</AlertDialogDescription>
+            <AlertDialogTitle>删除节点</AlertDialogTitle>
+            <AlertDialogDescription className="break-words">
+              确定要删除节点「{deletingItem?.name}」、其下的 {deletingItem?.items.length ?? 0} 个客户端及相关用户关联吗？此操作不可撤销。
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteNodeMutation.isPending}>取消</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
+              onClick={(event) => {
+                event.preventDefault();
                 if (deletingItem) {
                   onDelete(deletingItem);
                 }

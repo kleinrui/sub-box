@@ -123,9 +123,11 @@ bun run deploy
 验证：
 
 ```bash
-bun test tests/api-token-service.test.ts
-# 启动本地 bun dev 后运行；测试创建并撤销测试 Token，创建的节点会自动清理。
-SUB_BOX_TEST_URL=http://localhost:3000 bun with-env bun test tests/api-token.integration.test.ts
+# 运行 SQLite 服务、导入校验和批量导入回归；未设置测试地址时跳过 HTTP 测试。
+bun --conditions=react-server test tests
+# 启动本地 bun dev 后运行完整测试；仅允许 localhost/127.0.0.1。
+# HTTP 测试会创建测试 Token、用户、节点和客户端，并在结束时清理。
+SUB_BOX_TEST_URL=http://localhost:3000 bun with-env bun --conditions=react-server test tests
 ```
 
 ### Scalar 文档与测试

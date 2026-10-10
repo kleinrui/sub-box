@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -25,6 +26,8 @@ interface SubconverterTableProps {
 }
 
 export function SubconverterTable({ subconverters }: SubconverterTableProps) {
+  const router = useRouter();
+  const utils = api.useUtils();
   const [editingItem, setEditingItem] = useState<Subconverter | null>(null);
   const [deletingItem, setDeletingItem] = useState<Subconverter | null>(null);
 
@@ -32,6 +35,9 @@ export function SubconverterTable({ subconverters }: SubconverterTableProps) {
   const deleteSubconverterMutation = api.subconverter.delete.useMutation({
     onSuccess: () => {
       toast.success("删除成功");
+      void utils.subconverter.invalidate();
+      void utils.user.invalidate();
+      router.refresh();
       setDeletingItem(null);
     },
     onError: (error) => {
@@ -40,6 +46,7 @@ export function SubconverterTable({ subconverters }: SubconverterTableProps) {
   });
 
   function onDelete(item: Subconverter) {
+    if (deleteSubconverterMutation.isPending) return;
     deleteSubconverterMutation.mutate(item.id);
   }
 
@@ -56,16 +63,19 @@ export function SubconverterTable({ subconverters }: SubconverterTableProps) {
         <SubconverterForm subconverter={editingItem ?? undefined} onSuccess={() => setEditingItem(null)} />
       </PopupSheet>
 
-      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && setDeletingItem(null)}>
-        <AlertDialogContent>
+      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && !deleteSubconverterMutation.isPending && setDeletingItem(null)}>
+        <AlertDialogContent onEscapeKeyDown={(event) => deleteSubconverterMutation.isPending && event.preventDefault()}>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>确定要删除此订阅转换器吗？此操作不可撤销。</AlertDialogDescription>
+            <AlertDialogTitle>删除订阅转换器</AlertDialogTitle>
+            <AlertDialogDescription className="break-words">
+              确定要删除订阅转换器「{deletingItem?.url}」吗？使用它的用户将改为使用默认转换器。此操作不可撤销。
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteSubconverterMutation.isPending}>取消</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
+              onClick={(event) => {
+                event.preventDefault();
                 if (deletingItem) {
                   onDelete(deletingItem);
                 }

@@ -30,12 +30,14 @@ interface UserFormProps {
 
 export function UserForm({ user, subconverters, onSubmitSuccess }: UserFormProps) {
   const router = useRouter();
+  const utils = api.useUtils();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 使用trpc mutations
   const createUser = api.user.create.useMutation({
     onSuccess: () => {
       toast.success("用户创建成功");
+      void utils.user.invalidate();
       router.refresh();
       onSubmitSuccess?.();
     },
@@ -47,6 +49,7 @@ export function UserForm({ user, subconverters, onSubmitSuccess }: UserFormProps
   const updateUser = api.user.update.useMutation({
     onSuccess: () => {
       toast.success("用户更新成功");
+      void utils.user.invalidate();
       router.refresh();
       onSubmitSuccess?.();
     },

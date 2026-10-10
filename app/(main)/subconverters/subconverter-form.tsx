@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -38,10 +39,15 @@ interface SubconverterFormProps {
 }
 
 export function SubconverterForm({ subconverter, onSuccess }: SubconverterFormProps) {
+  const router = useRouter();
+  const utils = api.useUtils();
+
   // 使用TRPC mutations
   const createSubconverterMutation = api.subconverter.create.useMutation({
     onSuccess: () => {
       toast.success("创建成功");
+      void utils.subconverter.invalidate();
+      router.refresh();
       onSuccess?.();
     },
     onError: (error) => {
@@ -52,6 +58,8 @@ export function SubconverterForm({ subconverter, onSuccess }: SubconverterFormPr
   const updateSubconverterMutation = api.subconverter.update.useMutation({
     onSuccess: () => {
       toast.success("更新成功");
+      void utils.subconverter.invalidate();
+      router.refresh();
       onSuccess?.();
     },
     onError: (error) => {

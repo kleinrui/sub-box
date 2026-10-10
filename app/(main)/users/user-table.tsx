@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -27,6 +28,8 @@ interface UserTableProps {
 }
 
 export function UserTable({ users, subconverters }: UserTableProps) {
+  const router = useRouter();
+  const utils = api.useUtils();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
@@ -39,6 +42,10 @@ export function UserTable({ users, subconverters }: UserTableProps) {
   const deleteUserMutation = api.user.delete.useMutation({
     onSuccess: () => {
       toast.success("用户删除成功");
+      void utils.user.invalidate();
+      void utils.node.invalidate();
+      void utils.nodeClient.invalidate();
+      router.refresh();
       setDeletingUser(null);
     },
     onError: (error) => {
@@ -51,6 +58,7 @@ export function UserTable({ users, subconverters }: UserTableProps) {
   }, []);
 
   function onDelete(user: User) {
+    if (deleteUserMutation.isPending) return;
     deleteUserMutation.mutate(user.id);
   }
 
@@ -95,16 +103,17 @@ export function UserTable({ users, subconverters }: UserTableProps) {
         <UserForm user={editingUser ?? undefined} subconverters={subconverters} onSubmitSuccess={() => setEditingUser(null)} />
       </PopupSheet>
 
-      <AlertDialog open={Boolean(deletingUser)} onOpenChange={(open) => !open && setDeletingUser(null)}>
-        <AlertDialogContent>
+      <AlertDialog open={Boolean(deletingUser)} onOpenChange={(open) => !open && !deleteUserMutation.isPending && setDeletingUser(null)}>
+        <AlertDialogContent onEscapeKeyDown={(event) => deleteUserMutation.isPending && event.preventDefault()}>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>确定要删除用户 {deletingUser?.name} 吗？此操作不可撤销。</AlertDialogDescription>
+            <AlertDialogTitle>删除用户</AlertDialogTitle>
+            <AlertDialogDescription className="break-words">确定要删除用户「{deletingUser?.name}」及其客户端关联吗？此操作不可撤销。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteUserMutation.isPending}>取消</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
+              onClick={(event) => {
+                event.preventDefault();
                 if (deletingUser) {
                   onDelete(deletingUser);
                 }

@@ -33,10 +33,12 @@ interface NodeFormProps {
 
 export function NodeForm({ node, onSuccess, onSubmitSuccess }: NodeFormProps) {
   const router = useRouter();
+  const utils = api.useUtils();
 
   const createNodeMutation = api.node.create.useMutation({
     onSuccess: () => {
       toast.success("创建成功");
+      void utils.node.invalidate();
       router.refresh();
       onSuccess?.();
       onSubmitSuccess?.();
@@ -49,6 +51,7 @@ export function NodeForm({ node, onSuccess, onSubmitSuccess }: NodeFormProps) {
   const updateNodeMutation = api.node.update.useMutation({
     onSuccess: () => {
       toast.success("更新成功");
+      void utils.node.invalidate();
       router.refresh();
       onSuccess?.();
       onSubmitSuccess?.();

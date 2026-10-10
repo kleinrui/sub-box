@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -25,6 +26,8 @@ interface ClashConfigTableProps {
 }
 
 export function ClashConfigTable({ configs }: ClashConfigTableProps) {
+  const router = useRouter();
+  const utils = api.useUtils();
   const [editingItem, setEditingItem] = useState<ClashConfig | null>(null);
   const [deletingItem, setDeletingItem] = useState<ClashConfig | null>(null);
 
@@ -32,6 +35,8 @@ export function ClashConfigTable({ configs }: ClashConfigTableProps) {
   const deleteClashConfigMutation = api.clashConfig.delete.useMutation({
     onSuccess: () => {
       toast.success("删除成功");
+      void utils.clashConfig.invalidate();
+      router.refresh();
       setDeletingItem(null);
     },
     onError: (error) => {
@@ -40,6 +45,7 @@ export function ClashConfigTable({ configs }: ClashConfigTableProps) {
   });
 
   function onDelete(item: ClashConfig) {
+    if (deleteClashConfigMutation.isPending) return;
     deleteClashConfigMutation.mutate(item.id);
   }
 
@@ -56,16 +62,17 @@ export function ClashConfigTable({ configs }: ClashConfigTableProps) {
         <ClashConfigForm config={editingItem ?? undefined} onSuccess={() => setEditingItem(null)} />
       </PopupSheet>
 
-      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && setDeletingItem(null)}>
-        <AlertDialogContent>
+      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && !deleteClashConfigMutation.isPending && setDeletingItem(null)}>
+        <AlertDialogContent onEscapeKeyDown={(event) => deleteClashConfigMutation.isPending && event.preventDefault()}>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>确定要删除配置 {deletingItem?.name} 吗？此操作不可撤销。</AlertDialogDescription>
+            <AlertDialogTitle>删除 Clash 配置</AlertDialogTitle>
+            <AlertDialogDescription className="break-words">确定要删除配置「{deletingItem?.name}」吗？此操作不可撤销。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteClashConfigMutation.isPending}>取消</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
+              onClick={(event) => {
+                event.preventDefault();
                 if (deletingItem) {
                   onDelete(deletingItem);
                 }
