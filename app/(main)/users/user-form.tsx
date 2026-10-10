@@ -2,133 +2,137 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import * as z from "zod";
+import type * as z from "zod";
 
+import { FormActions } from "@/components/form-actions";
+import { usePopupSheetFormState } from "@/components/popup-sheet";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { generateSubscriptionKey, userFormSchema } from "@/lib/resource-form";
 import type { Subconverter, User } from "@/types";
 import { api } from "@/utils/api";
 
-const formSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  subscriptionKey: z.string().min(1, "Subscription Key is required"),
-  subconverterId: z.string().nullable().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof userFormSchema>;
 
 interface UserFormProps {
   user?: User;
   subconverters: Subconverter[];
-  onSubmitSuccess?: () => void;
+  onSubmitSuccess?: (savedUser: User) => void;
 }
 
 export function UserForm({ user, subconverters, onSubmitSuccess }: UserFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // 使用trpc mutations
-  const createUser = api.user.create.useMutation({
-    onSuccess: () => {
-      toast.success("用户创建成功");
-      void utils.user.invalidate();
-      router.refresh();
-      onSubmitSuccess?.();
-    },
-    onError: (error) => {
-      toast.error(`创建失败: ${error.message}`);
-    },
-  });
-
-  const updateUser = api.user.update.useMutation({
-    onSuccess: () => {
-      toast.success("用户更新成功");
-      void utils.user.invalidate();
-      router.refresh();
-      onSubmitSuccess?.();
-    },
-    onError: (error) => {
-      toast.error(`更新失败: ${error.message}`);
-    },
-  });
+  const savingRef = useRef(false);
+  const initializedKeyRef = useRef(false);
+  const createUser = api.user.create.useMutation();
+  const updateUser = api.user.update.useMutation();
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(userFormSchema),
     defaultValues: {
       name: user?.name || "",
       subscriptionKey: user?.subscriptionKey || "",
       subconverterId: user?.subconverterId || null,
     },
   });
+  const isPending = form.formState.isSubmitting || createUser.isPending || updateUser.isPending;
+  const requestClose = usePopupSheetFormState({ isDirty: form.formState.isDirty, isPending });
+  const subscriptionKey = form.watch("subscriptionKey");
+
+  useEffect(() => {
+    if (user || initializedKeyRef.current) return;
+    initializedKeyRef.current = true;
+    // 客户端挂载后生成，并设为初始值，不触发未保存修改确认。
+    form.resetField("subscriptionKey", { defaultValue: generateSubscriptionKey() });
+  }, [form, user]);
 
   async function onSubmit(values: FormValues) {
-    setIsSubmitting(true);
+    if (savingRef.current) return;
+    savingRef.current = true;
+    form.clearErrors("root");
     try {
-      if (user) {
-        // 更新用户
-        await updateUser.mutateAsync({
-          id: user.id,
-          data: values,
-        });
-      } else {
-        // 创建新用户
-        await createUser.mutateAsync(values);
-      }
-    } catch (_error) {
-      // 错误在mutation的onError中处理
+      const savedUser = user ? await updateUser.mutateAsync({ id: user.id, data: values }) : await createUser.mutateAsync(values);
+      await Promise.allSettled([utils.user.invalidate(), utils.nodeClient.invalidate()]);
+      router.refresh();
+      toast.success(user ? "用户更新成功" : "用户创建成功");
+      form.reset({ name: savedUser.name, subscriptionKey: savedUser.subscriptionKey, subconverterId: savedUser.subconverterId });
+      onSubmitSuccess?.(savedUser);
+    } catch {
+      const message = "保存失败，请检查订阅密钥是否已被其他用户使用，或稍后重试。";
+      form.setError("root", { message });
+      toast.error(message);
     } finally {
-      setIsSubmitting(false);
+      savingRef.current = false;
     }
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>用户名</FormLabel>
-              <FormControl>
-                <Input placeholder="输入用户名称" {...field} />
-              </FormControl>
-              <FormDescription>此名称仅用于标识用户，不是登录用户名</FormDescription>
-              <FormMessage />
-            </FormItem>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-full flex-col gap-6">
+        <div className="space-y-5">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>用户名（必填）</FormLabel>
+                <FormControl>
+                  <Input placeholder="例如：我的手机" {...field} aria-required="true" disabled={isPending} />
+                </FormControl>
+                <FormDescription>此名称仅用于标识用户，不是登录用户名</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="subscriptionKey"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center justify-between gap-2">
+                  <FormLabel>订阅密钥（必填）</FormLabel>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isPending}
+                    onClick={() => form.setValue("subscriptionKey", generateSubscriptionKey(), { shouldDirty: true, shouldValidate: true })}
+                  >
+                    重新生成
+                  </Button>
+                </div>
+                <FormControl>
+                  <Input placeholder="自动生成后可手动编辑" {...field} aria-required="true" disabled={isPending} className="font-mono" />
+                </FormControl>
+                <FormDescription>订阅链接中的唯一标识，请妥善保管。可使用自动生成的随机值，也可手动填写唯一密钥。</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {user && subscriptionKey !== user.subscriptionKey && (
+            <Alert variant="destructive">
+              <AlertDescription>保存新的订阅密钥后，旧订阅链接将立即失效，请为使用该用户的客户端更新订阅链接。</AlertDescription>
+            </Alert>
           )}
-        />
-        <FormField
-          control={form.control}
-          name="subscriptionKey"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>订阅密钥</FormLabel>
-              <FormControl>
-                <Input placeholder="输入唯一的订阅密钥" {...field} />
-              </FormControl>
-              <FormDescription>用户订阅链接中的唯一标识</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="subconverterId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>使用的订阅转换器</FormLabel>
-              <FormControl>
-                <Select onValueChange={(value) => field.onChange(value === "null" ? null : value)} value={field.value || "null"}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="选择订阅转换器" />
-                  </SelectTrigger>
+          <FormField
+            control={form.control}
+            name="subconverterId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>订阅转换器（可选）</FormLabel>
+                <Select onValueChange={(value) => field.onChange(value === "null" ? null : value)} value={field.value || "null"} disabled={isPending}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="选择订阅转换器" />
+                    </SelectTrigger>
+                  </FormControl>
                   <SelectContent>
                     <SelectItem value="null">使用默认转换器</SelectItem>
                     {subconverters.map((subconverter) => (
@@ -138,17 +142,18 @@ export function UserForm({ user, subconverters, onSubmitSuccess }: UserFormProps
                     ))}
                   </SelectContent>
                 </Select>
-              </FormControl>
-              <FormDescription>留空则使用默认转换器</FormDescription>
-              <FormMessage />
-            </FormItem>
+                <FormDescription>选择“使用默认转换器”即可，无需指定独立的转换器。</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {form.formState.errors.root?.message && (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{form.formState.errors.root.message}</AlertDescription>
+            </Alert>
           )}
-        />
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isSubmitting || createUser.isPending || updateUser.isPending}>
-            {isSubmitting || createUser.isPending || updateUser.isPending ? "提交中..." : user ? "保存更改" : "创建用户"}
-          </Button>
         </div>
+        <FormActions isPending={isPending} onCancel={requestClose} />
       </form>
     </Form>
   );
