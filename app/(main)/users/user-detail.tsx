@@ -7,6 +7,7 @@ import { DateTime } from "@/components/date-time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { getSubscriptionUrl } from "@/lib/subscription-url";
 import type { Node, NodeClient, User } from "@/types";
 import type { UserListItem } from "./columns";
 import { UserNodeClientTable } from "./user-node-client-table";
@@ -46,7 +47,7 @@ export function UserDetail({
   onRetryNodes,
   isPending,
 }: UserDetailProps) {
-  const subscriptionUrl = baseUrl ? `${baseUrl}/sub/${user.subscriptionKey}` : "";
+  const subscriptionUrl = baseUrl ? getSubscriptionUrl(baseUrl, user.subscriptionKey) : "";
 
   return (
     <div className="space-y-6">

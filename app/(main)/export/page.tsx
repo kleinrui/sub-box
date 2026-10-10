@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, Download, FileJson, Upload } from "lucide-re
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { PageHeading } from "@/components/page-heading";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -162,7 +163,8 @@ export default function ExportPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="min-w-0 space-y-6">
+      <PageHeading title="导入导出" description="备份当前数据，或从已有导出文件恢复配置。" />
       {/* Export Card */}
       <Card>
         <CardHeader>

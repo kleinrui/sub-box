@@ -11,6 +11,7 @@ import { IdBadge } from "@/components/id-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { getSubscriptionUrl } from "@/lib/subscription-url";
 import type { User } from "@/types";
 
 export interface UserListItem extends User {
@@ -74,7 +75,7 @@ export function createColumns({ baseUrl, getUserHref, onEdit, onDelete, isPendin
     {
       id: "subscription",
       header: "订阅链接",
-      cell: ({ row }) => <CopyButton value={baseUrl ? `${baseUrl}/sub/${row.original.subscriptionKey}` : ""} label="复制订阅" disabled={!baseUrl} variant="outline" />,
+      cell: ({ row }) => <CopyButton value={baseUrl ? getSubscriptionUrl(baseUrl, row.original.subscriptionKey) : ""} label="复制订阅" disabled={!baseUrl} variant="outline" />,
       meta: { title: "订阅链接" },
       enableSorting: false,
     },
