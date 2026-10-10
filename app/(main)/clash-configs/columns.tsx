@@ -1,13 +1,12 @@
 "use client";
 
-import { type ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Edit2, Trash2 } from "lucide-react";
-
-import { DateTime } from "@/components/date-time";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DateTime } from "@/components/date-time";
 import { IdBadge } from "@/components/id-badge";
 import { Button } from "@/components/ui/button";
-import { type ClashConfig } from "@/types";
+import type { ClashConfig } from "@/types";
 
 interface ClashConfigActionsProps {
   config: ClashConfig;
@@ -78,4 +77,4 @@ export function createColumns({ onEdit, onDelete }: CreateColumnsOptions): Colum
       enableHiding: false,
     },
   ];
-} 
+}

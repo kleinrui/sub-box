@@ -15,11 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { type Node, type NodeClient, type User, type Subconverter } from "@/types";
+import type { Subconverter, User } from "@/types";
+import { api } from "@/utils/api";
 import { createColumns } from "./columns";
 import { UserForm } from "./user-form";
 import { UserNodeClientTable } from "./user-node-client-table";
-import { api } from "@/utils/api";
 
 interface UserTableProps {
   users: User[];
@@ -30,11 +30,11 @@ export function UserTable({ users, subconverters }: UserTableProps) {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
-  
+
   // 使用TRPC获取所需数据
   const { data: nodeClientsWithUsers = [] } = api.nodeClient.getNodeClientsWithUsers.useQuery();
   const { data: nodes = [] } = api.node.getAll.useQuery();
-  
+
   // 使用TRPC删除用户
   const deleteUserMutation = api.user.delete.useMutation({
     onSuccess: () => {
@@ -66,13 +66,13 @@ export function UserTable({ users, subconverters }: UserTableProps) {
       }
       return acc;
     },
-    {} as Record<string, typeof nodeClientsWithUsers[number][]>
+    {} as Record<string, (typeof nodeClientsWithUsers)[number][]>
   );
 
   const columns = createColumns({
     baseUrl,
     onEdit: setEditingUser,
-    onDelete: setDeletingUser
+    onDelete: setDeletingUser,
   });
 
   return (
@@ -80,9 +80,7 @@ export function UserTable({ users, subconverters }: UserTableProps) {
       <DataTable
         columns={columns}
         data={users}
-        expandedContent={(user) => (
-          <UserNodeClientTable userId={user.id} items={itemsByUser[user.id] || []} nodes={nodes} users={users} />
-        )}
+        expandedContent={(user) => <UserNodeClientTable userId={user.id} items={itemsByUser[user.id] || []} nodes={nodes} users={users} />}
         expandedTitle={(user) => {
           const count = itemsByUser[user.id]?.length || 0;
           return `用户 ${user.name} 的客户端列表 (${count})`;

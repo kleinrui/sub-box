@@ -1,12 +1,11 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import { Box, Cog, FileJson, Home, Link2, LogOut, Users, ExternalLink, type LucideIcon, FileText, Github } from "lucide-react";
-import { toast } from "sonner";
-import pkg from "@/package.json";
+import { Box, Cog, ExternalLink, FileJson, Github, Home, Link2, LogOut, type LucideIcon, Users } from "lucide-react";
 import Link from "next/link";
-
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -19,8 +18,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import pkg from "@/package.json";
 
 interface NavItem {
   title: string;
@@ -99,16 +98,16 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
           <SidebarMenu>
             {/* <SidebarMenuItem>
               <SidebarMenuButton asChild> */}
-                <div className="flex items-center gap-2 my-4 mx-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Box className="h-5 w-5" />
-                  </div>
-                  <div className="grid flex-1 text-sm leading-tight">
-                    <span className="font-semibold">Sub Box</span>
-                    <span className="text-xs text-muted-foreground">v{pkg.version}</span>
-                  </div>
-                </div>
-              {/* </SidebarMenuButton>
+            <div className="flex items-center gap-2 my-4 mx-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Box className="h-5 w-5" />
+              </div>
+              <div className="grid flex-1 text-sm leading-tight">
+                <span className="font-semibold">Sub Box</span>
+                <span className="text-xs text-muted-foreground">v{pkg.version}</span>
+              </div>
+            </div>
+            {/* </SidebarMenuButton>
             </SidebarMenuItem> */}
           </SidebarMenu>
         </SidebarGroup>
@@ -118,11 +117,7 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={pathname === item.href}
-                    tooltip={item.title}
-                  >
+                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.title}>
                     <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -139,10 +134,7 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
             <SidebarMenu>
               {docItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton 
-                    asChild 
-                    tooltip={item.title}
-                  >
+                  <SidebarMenuButton asChild tooltip={item.title}>
                     <a href={item.href} target="_blank" rel="noopener noreferrer" className="group">
                       <item.icon className="h-4 w-4" />
                       <span className="flex-1">{item.title}</span>
@@ -157,12 +149,7 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
       </SidebarContent>
       <SidebarFooter className="!flex-row justify-between px-2">
         <ThemeToggle />
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={handleLogout}
-          className="group-data-[collapsible=icon]/sidebar:w-10 group-data-[collapsible=icon]/sidebar:px-0"
-        >
+        <Button variant="ghost" size="icon" onClick={handleLogout} className="group-data-[collapsible=icon]/sidebar:w-10 group-data-[collapsible=icon]/sidebar:px-0">
           <LogOut className="h-4 w-4" />
           <span className="sr-only">退出登录</span>
         </Button>

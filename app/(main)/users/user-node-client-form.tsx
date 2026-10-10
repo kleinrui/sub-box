@@ -1,20 +1,19 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { type Node, type NodeClient, type User } from "@/types";
+import { Textarea } from "@/components/ui/textarea";
+import type { Node, NodeClient, User } from "@/types";
 import { api } from "@/utils/api";
 
 const formSchema = z.object({
@@ -36,7 +35,7 @@ interface UserNodeClientFormProps {
 
 export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: UserNodeClientFormProps) {
   const router = useRouter();
-  
+
   // 使用TRPC创建和设置节点客户端权限
   const createNodeClientMutation = api.nodeClient.create.useMutation({
     onSuccess: () => {
@@ -46,7 +45,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
       toast.error(`创建失败: ${error.message}`);
     },
   });
-  
+
   const updateNodeClientMutation = api.nodeClient.update.useMutation({
     onSuccess: () => {
       // 在onSubmit中处理成功回调
@@ -55,7 +54,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
       toast.error(`更新失败: ${error.message}`);
     },
   });
-  
+
   const setUserClientOptionsMutation = api.nodeClient.setUserClientOptions.useMutation({
     onSuccess: () => {
       // 在onSubmit中处理成功回调
@@ -64,7 +63,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
       toast.error(`设置用户权限失败: ${error.message}`);
     },
   });
-  
+
   const updateUserClientOptionMutation = api.nodeClient.updateUserClientOption.useMutation({
     onSuccess: () => {
       // 在onSubmit中处理成功回调
@@ -77,15 +76,15 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
   // 检查当前用户是否在item的users列表中并且是启用状态
   const currentUserEnabled = useMemo(() => {
     if (!item) return true;
-    const userOption = item.users.find(u => u.userId === userId);
+    const userOption = item.users.find((u) => u.userId === userId);
     return userOption ? userOption.enable : false;
   }, [item, userId]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      userIds: item ? item.users.map(u => u.userId) : [userId],
-      nodeId: item?.nodeId ?? (nodes.length === 1 ? nodes[0]?.id ?? "" : ""),
+      userIds: item ? item.users.map((u) => u.userId) : [userId],
+      nodeId: item?.nodeId ?? (nodes.length === 1 ? (nodes[0]?.id ?? "") : ""),
       url: item?.url ?? "",
       currentUserEnable: currentUserEnabled,
     },
@@ -95,7 +94,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
   const watchedUserIds = form.watch("userIds");
   const currentUserEnableValue = form.watch("currentUserEnable");
   const isCurrentUserInList = watchedUserIds.includes(userId);
-  
+
   // 当用户从列表中移除当前用户时，禁用currentUserEnable
   useEffect(() => {
     if (!isCurrentUserInList && currentUserEnableValue) {
@@ -131,41 +130,41 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
     try {
       // 创建或更新节点客户端
       let nodeClientId: string;
-      
+
       if (item) {
         // 更新现有客户端
         await updateNodeClientMutation.mutateAsync({
           id: item.id,
           data: {
             nodeId: values.nodeId,
-            url: values.url
-          }
+            url: values.url,
+          },
         });
         nodeClientId = item.id;
       } else {
         // 创建新客户端
         const result = await createNodeClientMutation.mutateAsync({
           nodeId: values.nodeId,
-          url: values.url
+          url: values.url,
         });
         nodeClientId = result.id;
       }
-      
+
       // 处理新增的用户（比较表单中的userIds和item中已有的用户）
-      const existingUserIds = item ? item.users.map(u => u.userId) : [];
-      const newUserIds = values.userIds.filter(id => !existingUserIds.includes(id));
-      
+      const existingUserIds = item ? item.users.map((u) => u.userId) : [];
+      const newUserIds = values.userIds.filter((id) => !existingUserIds.includes(id));
+
       if (newUserIds.length > 0) {
         // 添加新用户
         await setUserClientOptionsMutation.mutateAsync({
           nodeClientId: nodeClientId,
           userIds: newUserIds,
           defaultOptions: {
-            enable: true
-          }
+            enable: true,
+          },
         });
       }
-      
+
       // 处理已有用户的启用状态更新
       if (isCurrentUserInList) {
         // 更新当前用户的启用状态
@@ -173,20 +172,20 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
           nodeClientId: nodeClientId,
           userId: userId,
           data: {
-            enable: values.currentUserEnable
-          }
+            enable: values.currentUserEnable,
+          },
         });
       }
-      
+
       // 处理需要删除的用户（从item中移除的用户）
-      const removedUserIds = existingUserIds.filter(id => !values.userIds.includes(id));
+      const removedUserIds = existingUserIds.filter((id) => !values.userIds.includes(id));
       if (removedUserIds.length > 0) {
         // 这里我们需要删除这些用户与节点客户端的关联
         // 由于setUserClientOptions会删除不在userIds中的关联，我们可以使用这个方法
         await setUserClientOptionsMutation.mutateAsync({
           nodeClientId: nodeClientId,
           userIds: values.userIds, // 只保留表单中选择的用户
-          defaultOptions: {} // 不改变默认选项
+          defaultOptions: {}, // 不改变默认选项
         });
       }
 
@@ -197,11 +196,8 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
       toast.error(`操作失败: ${(error as Error).message}`);
     }
   }
-  
-  const isPending = createNodeClientMutation.isPending || 
-                  updateNodeClientMutation.isPending || 
-                  setUserClientOptionsMutation.isPending ||
-                  updateUserClientOptionMutation.isPending;
+
+  const isPending = createNodeClientMutation.isPending || updateNodeClientMutation.isPending || setUserClientOptionsMutation.isPending || updateUserClientOptionMutation.isPending;
 
   return (
     <Form {...form}>
@@ -225,7 +221,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
             </FormItem>
           )}
         />
-        
+
         {/* 当前用户启用开关 */}
         <FormField
           control={form.control}
@@ -234,24 +230,16 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
             <FormItem>
               <div className="flex items-center gap-2">
                 <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={!isCurrentUserInList}
-                  />
+                  <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!isCurrentUserInList} />
                 </FormControl>
-                <FormLabel className="text-sm font-normal">
-                  启用当前用户
-                </FormLabel>
+                <FormLabel className="text-sm font-normal">启用当前用户</FormLabel>
               </div>
-              {!isCurrentUserInList && (
-                <p className="text-xs text-muted-foreground">当前用户不在用户列表中，需要先添加当前用户</p>
-              )}
+              {!isCurrentUserInList && <p className="text-xs text-muted-foreground">当前用户不在用户列表中，需要先添加当前用户</p>}
               <FormMessage />
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="nodeId"
@@ -300,4 +288,4 @@ export function UserNodeClientForm({ userId, nodes, users, item, onSuccess }: Us
       </form>
     </Form>
   );
-} 
+}

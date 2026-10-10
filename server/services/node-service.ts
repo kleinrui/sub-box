@@ -1,12 +1,12 @@
 import "server-only";
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
-import { type BatchItem } from "drizzle-orm/batch";
+import type { BatchItem } from "drizzle-orm/batch";
 
-import { type Node } from "@/types";
-import { db, type Database } from "../db";
-import { nodes, nodeClients, userClientOptions } from "../db/schema";
+import type { Node } from "@/types";
+import { type Database, db } from "../db";
+import { nodeClients, nodes, userClientOptions } from "../db/schema";
 
 class NodeService {
   private dbPromise: Promise<Database>;
@@ -68,17 +68,15 @@ class NodeService {
     const db = await this.getDb();
     // Get all node clients first
     const clients = await db.select().from(nodeClients).where(eq(nodeClients.nodeId, id));
-    
+
     // Delete in order: user_client_options -> node_clients -> node
     const batchStatements: BatchItem<"sqlite">[] = [
       // Delete all user client options for each client
-      ...clients.map(client => 
-        db.delete(userClientOptions).where(eq(userClientOptions.nodeClientId, client.id))
-      ),
+      ...clients.map((client) => db.delete(userClientOptions).where(eq(userClientOptions.nodeClientId, client.id))),
       // Delete all node clients
       db.delete(nodeClients).where(eq(nodeClients.nodeId, id)),
       // Delete the node
-      db.delete(nodes).where(eq(nodes.id, id))
+      db.delete(nodes).where(eq(nodes.id, id)),
     ];
 
     if (batchStatements.length > 0) {

@@ -1,12 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { UserList } from "./user-list"
-import { api } from "@/server/api/trpc-server"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { api } from "@/server/api/trpc-server";
+import { UserList } from "./user-list";
 
 export default async function Home() {
-  const users = await api.user.getAll()
-  const nodes = await api.node.getAll()
-  const subconverters = await api.subconverter.getAll()
-  const clashConfigs = await api.clashConfig.getAll()
+  const users = await api.user.getAll();
+  const nodes = await api.node.getAll();
+  const subconverters = await api.subconverter.getAll();
+  const clashConfigs = await api.clashConfig.getAll();
 
   return (
     <div className="flex flex-1 flex-col gap-4">
@@ -53,5 +53,5 @@ export default async function Home() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

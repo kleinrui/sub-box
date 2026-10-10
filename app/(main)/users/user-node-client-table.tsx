@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { ArrowUpDown } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -17,11 +17,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { type Node as DbNode, type NodeClient, type User } from "@/types";
+import type { Node as DbNode, NodeClient, User } from "@/types";
+import { api } from "@/utils/api";
 import { createColumns } from "./user-node-client-columns";
 import { UserNodeClientForm } from "./user-node-client-form";
 import { UserNodeClientOrderForm } from "./user-node-client-order-form";
-import { api } from "@/utils/api";
 
 interface UserNodeClientTableProps {
   userId: string;
@@ -31,10 +31,10 @@ interface UserNodeClientTableProps {
 }
 
 export function UserNodeClientTable({ userId, items, nodes, users }: UserNodeClientTableProps) {
-  const [editingItem, setEditingItem] = useState<NodeClient & { users: { userId: string; enable: boolean; order: number }[] } | null>(null);
-  const [deletingItem, setDeletingItem] = useState<NodeClient & { users: { userId: string; enable: boolean; order: number }[] } | null>(null);
+  const [editingItem, setEditingItem] = useState<(NodeClient & { users: { userId: string; enable: boolean; order: number }[] }) | null>(null);
+  const [deletingItem, setDeletingItem] = useState<(NodeClient & { users: { userId: string; enable: boolean; order: number }[] }) | null>(null);
   const [isEditingOrder, setIsEditingOrder] = useState(false);
-  
+
   // 使用TRPC删除节点客户端
   const deleteNodeClientMutation = api.nodeClient.delete.useMutation({
     onSuccess: () => {
@@ -68,22 +68,18 @@ export function UserNodeClientTable({ userId, items, nodes, users }: UserNodeCli
           </Button>
         </div>
 
-        <DataTable 
-          columns={columns} 
+        <DataTable
+          columns={columns}
           data={items
             .sort((a, b) => {
-              const aUser = a.users.find(u => u.userId === userId);
-              const bUser = b.users.find(u => u.userId === userId);
+              const aUser = a.users.find((u) => u.userId === userId);
+              const bUser = b.users.find((u) => u.userId === userId);
               return (aUser?.order ?? 0) - (bUser?.order ?? 0);
             })
             // Map the items to include a virtual order for display
             .map((item, index) => ({
               ...item,
-              users: item.users.map(u => 
-                u.userId === userId 
-                  ? { ...u, virtualOrder: index } 
-                  : u
-              )
+              users: item.users.map((u) => (u.userId === userId ? { ...u, virtualOrder: index } : u)),
             }))}
           defaultSorting={[]}
         />

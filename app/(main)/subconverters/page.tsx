@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HydrateClient } from "@/server/api/trpc-server";
-import { api } from "@/server/api/trpc-server";
+import { api, HydrateClient } from "@/server/api/trpc-server";
 import { CreateSubconverterDialog } from "./create-subconverter-dialog";
 import { SubconverterTable } from "./subconverter-table";
 
@@ -13,13 +12,13 @@ export default async function SubconvertersPage() {
         <div className="flex items-center gap-4">
           <CardTitle>订阅转换器 ({subconverters.length})</CardTitle>
           <HydrateClient>
-          <CreateSubconverterDialog />
+            <CreateSubconverterDialog />
           </HydrateClient>
         </div>
       </CardHeader>
       <CardContent>
         <HydrateClient>
-        <SubconverterTable subconverters={subconverters} />
+          <SubconverterTable subconverters={subconverters} />
         </HydrateClient>
       </CardContent>
     </Card>

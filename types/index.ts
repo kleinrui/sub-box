@@ -1,6 +1,6 @@
-import { InferSelectModel } from "drizzle-orm";
+import type { InferSelectModel } from "drizzle-orm";
 
-import { clashConfigs, subconverters, nodeClients, nodes, users, userClientOptions } from "@/server/db/schema";
+import type { clashConfigs, nodeClients, nodes, subconverters, userClientOptions, users } from "@/server/db/schema";
 
 // User Model
 export type User = InferSelectModel<typeof users>;

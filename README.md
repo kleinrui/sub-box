@@ -76,7 +76,7 @@ DATABASE_NAME=prod-sub-box-db bun d1:migrate:remote
 bun run deploy
 ```
 
-请注意，你需要使用 Node.js v22 版本。Node.js v23 及以上版本可能会导致 build 报错。
+请注意，你需要使用 Node.js v22 版本。Node.js v23 及以上版本可能会导致 build 报错。本地开发使用 Bun，代码检查与格式化使用 Biome（`bun run lint` / `bun run format`）。
 
 ### 本地开发
 

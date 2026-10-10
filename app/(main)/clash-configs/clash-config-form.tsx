@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { isClashRulesYamlList } from "@/lib/clash-rules";
-import { type ClashConfig } from "@/types";
+import type { ClashConfig } from "@/types";
 import { api } from "@/utils/api";
 
 const formSchema = z.object({
@@ -81,14 +81,14 @@ export function ClashConfigForm({ config, onSuccess }: ClashConfigFormProps) {
   });
 
   function onSubmit(data: FormData) {
-        if (config) {
+    if (config) {
       updateClashConfigMutation.mutate({
         id: config.id,
         data: data,
       });
-        } else {
+    } else {
       createClashConfigMutation.mutate(data);
-        }
+    }
   }
 
   const isPending = createClashConfigMutation.isPending || updateClashConfigMutation.isPending;
@@ -142,13 +142,7 @@ export function ClashConfigForm({ config, onSuccess }: ClashConfigFormProps) {
             <FormItem>
               <FormLabel>规则</FormLabel>
               <FormControl>
-                <Textarea
-                  {...field}
-                  value={value ?? ""}
-                  placeholder={"# YAML list\n- DOMAIN-SUFFIX,example.com,PROXY\n- GEOIP,CN,DIRECT"}
-                  className="font-mono"
-                  rows={10}
-                />
+                <Textarea {...field} value={value ?? ""} placeholder={"# YAML list\n- DOMAIN-SUFFIX,example.com,PROXY\n- GEOIP,CN,DIRECT"} className="font-mono" rows={10} />
               </FormControl>
               <FormMessage />
             </FormItem>

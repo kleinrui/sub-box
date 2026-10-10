@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { nodeService } from "@/server/services/node-service";
 import { nodeClientService } from "@/server/services/node-client-service";
+import { nodeService } from "@/server/services/node-service";
 
 // Schema定义
 const nodeSchema = z.object({
@@ -47,36 +47,32 @@ export const nodeRouter = createTRPCRouter({
     }));
   }),
 
-  getById: protectedProcedure
-    .input(z.string())
-    .query(async ({ input }) => {
-      return await nodeService.get(input);
-    }),
+  getById: protectedProcedure.input(z.string()).query(async ({ input }) => {
+    return await nodeService.get(input);
+  }),
 
-  create: protectedProcedure
-    .input(nodeSchema)
-    .mutation(async ({ input }) => {
-      return await nodeService.create({
-        name: input.name,
-        type: input.type,
-        host: input.host || null,
-        accessUrl: input.accessUrl || null,
-      });
-    }),
+  create: protectedProcedure.input(nodeSchema).mutation(async ({ input }) => {
+    return await nodeService.create({
+      name: input.name,
+      type: input.type,
+      host: input.host || null,
+      accessUrl: input.accessUrl || null,
+    });
+  }),
 
   update: protectedProcedure
-    .input(z.object({
-      id: z.string(),
-      data: nodeUpdateSchema,
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        data: nodeUpdateSchema,
+      })
+    )
     .mutation(async ({ input }) => {
       return await nodeService.update(input.id, input.data);
     }),
 
-  delete: protectedProcedure
-    .input(z.string())
-    .mutation(async ({ input }) => {
-      await nodeService.delete(input);
-      return { success: true };
-    }),
-}); 
+  delete: protectedProcedure.input(z.string()).mutation(async ({ input }) => {
+    await nodeService.delete(input);
+    return { success: true };
+  }),
+});

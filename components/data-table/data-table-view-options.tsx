@@ -1,17 +1,10 @@
 "use client";
 
-import { Table } from "@tanstack/react-table";
+import type { Table } from "@tanstack/react-table";
 import { Settings2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface DataTableViewOptionsProps<TData> {
   table: Table<TData>;
@@ -35,12 +28,7 @@ export function DataTableViewOptions<TData>({ table }: DataTableViewOptionsProps
           .map((column) => {
             const title = (column.columnDef.meta as { title?: string } | undefined)?.title || column.id;
             return (
-              <DropdownMenuCheckboxItem
-                key={column.id}
-                className="capitalize"
-                checked={column.getIsVisible()}
-                onCheckedChange={(value) => column.toggleVisibility(!!value)}
-              >
+              <DropdownMenuCheckboxItem key={column.id} className="capitalize" checked={column.getIsVisible()} onCheckedChange={(value) => column.toggleVisibility(!!value)}>
                 {title}
               </DropdownMenuCheckboxItem>
             );
@@ -48,4 +36,4 @@ export function DataTableViewOptions<TData>({ table }: DataTableViewOptionsProps
       </DropdownMenuContent>
     </DropdownMenu>
   );
-} 
+}

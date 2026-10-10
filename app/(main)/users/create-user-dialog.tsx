@@ -1,11 +1,11 @@
 "use client";
 
+import { PlusCircle } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { Subconverter } from "@/types";
 import { UserForm } from "./user-form";
-import { PlusCircle } from "lucide-react";
-import { type Subconverter } from "@/types";
 
 interface CreateUserDialogProps {
   subconverters: Subconverter[];

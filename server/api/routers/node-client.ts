@@ -14,7 +14,7 @@ const nodeClientUpdateSchema = z.object({
   url: z.string().optional(),
 });
 
-const userClientOptionSchema = z.object({
+const _userClientOptionSchema = z.object({
   userId: z.string(),
   nodeClientId: z.string(),
   enable: z.boolean().optional(),
@@ -31,83 +31,72 @@ export const nodeClientRouter = createTRPCRouter({
     return await nodeClientService.getAll();
   }),
 
-  getById: protectedProcedure
-    .input(z.string())
-    .query(async ({ input }) => {
-      return await nodeClientService.get(input);
-    }),
+  getById: protectedProcedure.input(z.string()).query(async ({ input }) => {
+    return await nodeClientService.get(input);
+  }),
 
-  create: protectedProcedure
-    .input(nodeClientSchema)
-    .mutation(async ({ input }) => {
-      return await nodeClientService.create({
-        nodeId: input.nodeId,
-        url: input.url,
-      });
-    }),
+  create: protectedProcedure.input(nodeClientSchema).mutation(async ({ input }) => {
+    return await nodeClientService.create({
+      nodeId: input.nodeId,
+      url: input.url,
+    });
+  }),
 
   update: protectedProcedure
-    .input(z.object({
-      id: z.string(),
-      data: nodeClientUpdateSchema,
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        data: nodeClientUpdateSchema,
+      })
+    )
     .mutation(async ({ input }) => {
       return await nodeClientService.update(input.id, input.data);
     }),
 
-  delete: protectedProcedure
-    .input(z.string())
-    .mutation(async ({ input }) => {
-      await nodeClientService.delete(input);
-      return { success: true };
-    }),
+  delete: protectedProcedure.input(z.string()).mutation(async ({ input }) => {
+    await nodeClientService.delete(input);
+    return { success: true };
+  }),
 
-  getUserClientOptions: protectedProcedure
-    .input(z.string())
-    .query(async ({ input }) => {
-      return await nodeClientService.getUserClientOptions(input);
-    }),
+  getUserClientOptions: protectedProcedure.input(z.string()).query(async ({ input }) => {
+    return await nodeClientService.getUserClientOptions(input);
+  }),
 
   setUserClientOptions: protectedProcedure
-    .input(z.object({
-      nodeClientId: z.string(),
-      userIds: z.array(z.string()),
-      defaultOptions: z.object({
-        enable: z.boolean().optional(),
-        order: z.number().optional(),
-      }).optional(),
-    }))
+    .input(
+      z.object({
+        nodeClientId: z.string(),
+        userIds: z.array(z.string()),
+        defaultOptions: z
+          .object({
+            enable: z.boolean().optional(),
+            order: z.number().optional(),
+          })
+          .optional(),
+      })
+    )
     .mutation(async ({ input }) => {
-      await nodeClientService.setUserClientOptions(
-        input.nodeClientId, 
-        input.userIds, 
-        input.defaultOptions
-      );
+      await nodeClientService.setUserClientOptions(input.nodeClientId, input.userIds, input.defaultOptions);
       return { success: true };
     }),
 
   updateUserClientOption: protectedProcedure
-    .input(z.object({
-      nodeClientId: z.string(),
-      userId: z.string(),
-      data: userClientOptionUpdateSchema,
-    }))
+    .input(
+      z.object({
+        nodeClientId: z.string(),
+        userId: z.string(),
+        data: userClientOptionUpdateSchema,
+      })
+    )
     .mutation(async ({ input }) => {
-      return await nodeClientService.updateUserClientOption(
-        input.nodeClientId,
-        input.userId,
-        input.data
-      );
-    }),
-  
-  getNodeClientsWithUsers: protectedProcedure
-    .query(async () => {
-      return await nodeClientService.getNodeClientsWithUsers();
+      return await nodeClientService.updateUserClientOption(input.nodeClientId, input.userId, input.data);
     }),
 
-  getByUserId: protectedProcedure
-    .input(z.string())
-    .query(async ({ input }) => {
-      return await nodeClientService.getByUserId(input);
-    }),
-}); 
+  getNodeClientsWithUsers: protectedProcedure.query(async () => {
+    return await nodeClientService.getNodeClientsWithUsers();
+  }),
+
+  getByUserId: protectedProcedure.input(z.string()).query(async ({ input }) => {
+    return await nodeClientService.getByUserId(input);
+  }),
+});

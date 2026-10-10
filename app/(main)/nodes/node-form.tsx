@@ -1,16 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Node } from "@/types";
+import type { Node } from "@/types";
 import { api } from "@/utils/api";
 
 const formSchema = z.object({
@@ -69,20 +69,20 @@ export function NodeForm({ node, onSuccess, onSubmitSuccess }: NodeFormProps) {
   });
 
   function onSubmit(data: FormData) {
-        const submitData = {
-          ...data,
-          host: data.host || null,
-          accessUrl: data.accessUrl || null,
-        };
-    
-        if (node) {
+    const submitData = {
+      ...data,
+      host: data.host || null,
+      accessUrl: data.accessUrl || null,
+    };
+
+    if (node) {
       updateNodeMutation.mutate({
         id: node.id,
         data: submitData,
       });
-        } else {
+    } else {
       createNodeMutation.mutate(submitData);
-        }
+    }
   }
 
   const isPending = createNodeMutation.isPending || updateNodeMutation.isPending;

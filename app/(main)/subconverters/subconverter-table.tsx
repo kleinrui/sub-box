@@ -15,10 +15,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { type Subconverter } from "@/types";
+import type { Subconverter } from "@/types";
+import { api } from "@/utils/api";
 import { createColumns } from "./columns";
 import { SubconverterForm } from "./subconverter-form";
-import { api } from "@/utils/api";
 
 interface SubconverterTableProps {
   subconverters: Subconverter[];
@@ -50,12 +50,7 @@ export function SubconverterTable({ subconverters }: SubconverterTableProps) {
 
   return (
     <>
-      <DataTable 
-        columns={columns} 
-        data={subconverters} 
-        enableColumnVisibility
-        enableGlobalSearch
-      />
+      <DataTable columns={columns} data={subconverters} enableColumnVisibility enableGlobalSearch />
 
       <PopupSheet open={Boolean(editingItem)} onOpenChange={(open) => !open && setEditingItem(null)} title="编辑订阅转换器">
         <SubconverterForm subconverter={editingItem ?? undefined} onSuccess={() => setEditingItem(null)} />

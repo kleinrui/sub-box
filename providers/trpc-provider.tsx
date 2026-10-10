@@ -6,7 +6,7 @@ import { createTRPCReact } from "@trpc/react-query";
 import { useState } from "react";
 import superjson from "superjson";
 
-import { type AppRouter } from "@/server/api/root";
+import type { AppRouter } from "@/server/api/root";
 
 // 创建一个tRPC客户端
 export const api = createTRPCReact<AppRouter>();
@@ -18,7 +18,7 @@ function getBaseUrl() {
   return `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
-let clientQueryClientSingleton: QueryClient | undefined = undefined;
+let clientQueryClientSingleton: QueryClient | undefined;
 const getQueryClient = () => {
   if (typeof window === "undefined") {
     // 服务器端：始终创建一个新的QueryClient
@@ -49,13 +49,11 @@ export function TRPCProvider(props: { children: React.ReactNode }) {
     api.createClient({
       links: [
         loggerLink({
-          enabled: (op) =>
-            process.env.NODE_ENV === "development" ||
-            (op.direction === "down" && op.result instanceof Error),
+          enabled: (op) => process.env.NODE_ENV === "development" || (op.direction === "down" && op.result instanceof Error),
         }),
         httpBatchLink({
           transformer: superjson,
-          url: getBaseUrl() + "/api/trpc",
+          url: `${getBaseUrl()}/api/trpc`,
           headers: () => {
             const headers = new Headers();
             headers.set("x-trpc-source", "nextjs-react");
@@ -73,4 +71,4 @@ export function TRPCProvider(props: { children: React.ReactNode }) {
       </api.Provider>
     </QueryClientProvider>
   );
-} 
+}

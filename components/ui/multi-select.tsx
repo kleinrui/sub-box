@@ -1,21 +1,10 @@
-import * as React from "react";
 import { Check, ChevronsUpDown, X } from "lucide-react";
-
-import { cn } from "@/lib/utils";
+import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 export interface Option {
   value: string;
@@ -30,28 +19,15 @@ interface MultiSelectProps {
   className?: string;
 }
 
-export function MultiSelect({
-  options,
-  value,
-  onValueChange,
-  placeholder = "选择选项",
-  className,
-}: MultiSelectProps) {
+export function MultiSelect({ options, value, onValueChange, placeholder = "选择选项", className }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
 
-  const selectedLabels = value
-    .map((v) => options.find((opt) => opt.value === v)?.label)
-    .filter(Boolean) as string[];
+  const selectedLabels = value.map((v) => options.find((opt) => opt.value === v)?.label).filter(Boolean) as string[];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("min-h-[2.5rem] h-auto", className)}
-        >
+        <Button variant="outline" role="combobox" aria-expanded={open} className={cn("min-h-[2.5rem] h-auto", className)}>
           <div className="flex flex-wrap gap-1 py-1">
             {selectedLabels.length > 0 ? (
               selectedLabels.map((label) => (
@@ -87,18 +63,11 @@ export function MultiSelect({
               <CommandItem
                 key={option.value}
                 onSelect={() => {
-                  const newValue = value.includes(option.value)
-                    ? value.filter((v) => v !== option.value)
-                    : [...value, option.value];
+                  const newValue = value.includes(option.value) ? value.filter((v) => v !== option.value) : [...value, option.value];
                   onValueChange(newValue);
                 }}
               >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    value.includes(option.value) ? "opacity-100" : "opacity-0"
-                  )}
-                />
+                <Check className={cn("mr-2 h-4 w-4", value.includes(option.value) ? "opacity-100" : "opacity-0")} />
                 {option.label}
               </CommandItem>
             ))}
@@ -107,4 +76,4 @@ export function MultiSelect({
       </PopoverContent>
     </Popover>
   );
-} 
+}

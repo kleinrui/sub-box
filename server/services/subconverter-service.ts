@@ -1,12 +1,11 @@
 import "server-only";
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 
-import { type Subconverter, type SubconverterRow } from "@/types";
-import { db, type Database } from "../db";
-import { subconverters } from "../db/schema";
-import { users } from "../db/schema";
+import type { Subconverter, SubconverterRow } from "@/types";
+import { type Database, db } from "../db";
+import { subconverters, users } from "../db/schema";
 
 function rowToSubconverter(row: SubconverterRow): Subconverter {
   return {
@@ -78,7 +77,7 @@ class SubconverterService {
       // Set subconverterId to null for all users using this subconverter
       db.update(users).set({ subconverterId: null }).where(eq(users.subconverterId, id)),
       // Delete the subconverter
-      db.delete(subconverters).where(eq(subconverters.id, id))
+      db.delete(subconverters).where(eq(subconverters.id, id)),
     ]);
   }
 }

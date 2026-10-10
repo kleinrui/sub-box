@@ -1,12 +1,12 @@
 import "server-only";
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { parseClashRulesYaml } from "@/lib/clash-rules";
-import { type ClashConfig } from "@/types";
-import { db, type Database } from "../db";
+import type { ClashConfig } from "@/types";
+import { type Database, db } from "../db";
 import { clashConfigs } from "../db/schema";
 
 // Define type for Clash configuration object
@@ -82,22 +82,22 @@ class ClashConfigService {
     // Step 1: Merge global config if exists
     if (config.globalConfig) {
       const globalConfig: ClashYamlConfig = parseYaml(config.globalConfig);
-      
+
       // Create a new object with the order from globalConfig first
       const orderedConfig: ClashYamlConfig = {};
-      
+
       // First, add all keys from globalConfig
       for (const key in globalConfig) {
         orderedConfig[key] = globalConfig[key];
       }
-      
+
       // Then, add remaining keys from finalConfig that don't exist in globalConfig
       for (const key in finalConfig) {
         if (!(key in orderedConfig)) {
           orderedConfig[key] = finalConfig[key];
         }
       }
-      
+
       finalConfig = orderedConfig;
     }
 

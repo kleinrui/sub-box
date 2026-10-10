@@ -10,9 +10,8 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
-
-import { getUser } from "@/server/services/authentication-service";
 import { db } from "@/server/db";
+import { getUser } from "@/server/services/authentication-service";
 
 /**
  * 1. CONTEXT
@@ -45,8 +44,7 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
       ...shape,
       data: {
         ...shape.data,
-        zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
     };
   },
@@ -107,16 +105,14 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
  *
  * @see https://trpc.io/docs/procedures
  */
-export const protectedProcedure = t.procedure
-  .use(timingMiddleware)
-  .use(({ ctx, next }) => {
-    if (!ctx.user) {
-      throw new TRPCError({ code: "UNAUTHORIZED" });
-    }
-    return next({
-      ctx: {
-        // infers the `user` as non-nullable
-        user: ctx.user,
-      },
-    });
-  }); 
+export const protectedProcedure = t.procedure.use(timingMiddleware).use(({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return next({
+    ctx: {
+      // infers the `user` as non-nullable
+      user: ctx.user,
+    },
+  });
+});

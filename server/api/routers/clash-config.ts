@@ -23,44 +23,42 @@ export const clashConfigRouter = createTRPCRouter({
     return await clashConfigService.getAll();
   }),
 
-  getById: protectedProcedure
-    .input(z.string())
-    .query(async ({ input }) => {
-      return await clashConfigService.get(input);
-    }),
+  getById: protectedProcedure.input(z.string()).query(async ({ input }) => {
+    return await clashConfigService.get(input);
+  }),
 
-  create: protectedProcedure
-    .input(clashConfigSchema)
-    .mutation(async ({ input }) => {
-      return await clashConfigService.create({
-        key: input.key,
-        name: input.name,
-        globalConfig: input.globalConfig || null,
-        rules: input.rules || null,
-      });
-    }),
+  create: protectedProcedure.input(clashConfigSchema).mutation(async ({ input }) => {
+    return await clashConfigService.create({
+      key: input.key,
+      name: input.name,
+      globalConfig: input.globalConfig || null,
+      rules: input.rules || null,
+    });
+  }),
 
   update: protectedProcedure
-    .input(z.object({
-      id: z.string(),
-      data: clashConfigUpdateSchema,
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        data: clashConfigUpdateSchema,
+      })
+    )
     .mutation(async ({ input }) => {
       return await clashConfigService.update(input.id, input.data);
     }),
 
-  delete: protectedProcedure
-    .input(z.string())
-    .mutation(async ({ input }) => {
-      await clashConfigService.delete(input);
-      return { success: true };
-    }),
+  delete: protectedProcedure.input(z.string()).mutation(async ({ input }) => {
+    await clashConfigService.delete(input);
+    return { success: true };
+  }),
 
   mergeConfig: protectedProcedure
-    .input(z.object({
-      baseYaml: z.string(),
-      configId: z.string(),
-    }))
+    .input(
+      z.object({
+        baseYaml: z.string(),
+        configId: z.string(),
+      })
+    )
     .mutation(async ({ input }) => {
       const config = await clashConfigService.get(input.configId);
       if (!config) {
@@ -68,4 +66,4 @@ export const clashConfigRouter = createTRPCRouter({
       }
       return await clashConfigService.mergeConfig(input.baseYaml, config);
     }),
-}); 
+});

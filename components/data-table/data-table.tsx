@@ -1,23 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import {
-  ColumnDef,
-  SortingState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type VisibilityState,
-} from "@tanstack/react-table";
+import { type ColumnDef, flexRender, getCoreRowModel, getFilteredRowModel, getSortedRowModel, type SortingState, useReactTable, type VisibilityState } from "@tanstack/react-table";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DataTableViewOptions } from "./data-table-view-options";
 import { cn } from "@/lib/utils";
+import { DataTableViewOptions } from "./data-table-view-options";
 
 interface DataTableProps<TData extends { id: string }> {
   columns: ColumnDef<TData, unknown>[];
@@ -51,7 +42,7 @@ export function DataTable<TData extends { id: string }>({
       return new Set(data.map((item) => item.id));
     }
     if (getItemCount) {
-      return new Set(data.filter(item => getItemCount(item) > 0).map(item => item.id));
+      return new Set(data.filter((item) => getItemCount(item) > 0).map((item) => item.id));
     }
     return new Set();
   });
@@ -94,12 +85,7 @@ export function DataTable<TData extends { id: string }>({
             {enableGlobalSearch && (
               <div className="flex items-center space-x-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="搜索..."
-                  value={globalFilter}
-                  onChange={(e) => setGlobalFilter(e.target.value)}
-                  className="h-8 w-[150px] lg:w-[250px]"
-                />
+                <Input placeholder="搜索..." value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-8 w-[150px] lg:w-[250px]" />
               </div>
             )}
           </div>
@@ -113,9 +99,7 @@ export function DataTable<TData extends { id: string }>({
               <TableRow key={headerGroup.id}>
                 {expandedContent && <TableHead className="w-[50px]" />}
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
+                  <TableHead key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>
                 ))}
               </TableRow>
             ))}
@@ -123,13 +107,10 @@ export function DataTable<TData extends { id: string }>({
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => [
-                <TableRow 
-                  key={row.id} 
+                <TableRow
+                  key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className={cn(
-                    expandedContent && "cursor-pointer hover:bg-muted/50",
-                    expandedRows.has(row.original.id) && "bg-muted/50"
-                  )}
+                  className={cn(expandedContent && "cursor-pointer hover:bg-muted/50", expandedRows.has(row.original.id) && "bg-muted/50")}
                   onClick={() => expandedContent && toggleExpand(row.original.id)}
                 >
                   {expandedContent && (
@@ -144,23 +125,15 @@ export function DataTable<TData extends { id: string }>({
                             toggleExpand(row.original.id);
                           }}
                         >
-                          {expandedRows.has(row.original.id) ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
+                          {expandedRows.has(row.original.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                           <span className="sr-only">展开</span>
                         </Button>
-                        {getItemCount && (
-                          <span className="text-sm text-muted-foreground">
-                            {getItemCount(row.original)}
-                          </span>
-                        )}
+                        {getItemCount && <span className="text-sm text-muted-foreground">{getItemCount(row.original)}</span>}
                       </div>
                     </TableCell>
                   )}
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell 
+                    <TableCell
                       key={cell.id}
                       onClick={(e) => {
                         if (cell.column.id === "actions") {
@@ -176,13 +149,9 @@ export function DataTable<TData extends { id: string }>({
                   <TableRow key={`${row.id}-expanded`}>
                     <TableCell colSpan={columns.length + 1} className="p-0">
                       {expandedTitle && (
-                        <div className="pl-20 pr-2 py-2 font-medium text-lg mt-2">
-                          {typeof expandedTitle === "function" ? expandedTitle(row.original) : expandedTitle}
-                        </div>
+                        <div className="pl-20 pr-2 py-2 font-medium text-lg mt-2">{typeof expandedTitle === "function" ? expandedTitle(row.original) : expandedTitle}</div>
                       )}
-                      <div className={cn("pl-20 pr-2 pb-4", !expandedTitle && "pt-2")}>
-                        {expandedContent(row.original)}
-                      </div>
+                      <div className={cn("pl-20 pr-2 pb-4", !expandedTitle && "pt-2")}>{expandedContent(row.original)}</div>
                     </TableCell>
                   </TableRow>
                 ),
@@ -199,4 +168,4 @@ export function DataTable<TData extends { id: string }>({
       </div>
     </div>
   );
-} 
+}

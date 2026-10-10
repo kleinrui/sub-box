@@ -1,12 +1,12 @@
 import "server-only";
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
-import { type BatchItem } from "drizzle-orm/batch";
+import type { BatchItem } from "drizzle-orm/batch";
 
-import { type User } from "@/types";
-import { db, type Database } from "../db";
-import { users, userClientOptions } from "../db/schema";
+import type { User } from "@/types";
+import { type Database, db } from "../db";
+import { userClientOptions, users } from "../db/schema";
 
 class UserService {
   private dbPromise: Promise<Database>;
@@ -70,7 +70,7 @@ class UserService {
       // Delete all user client options
       db.delete(userClientOptions).where(eq(userClientOptions.userId, id)),
       // Delete the user
-      db.delete(users).where(eq(users.id, id))
+      db.delete(users).where(eq(users.id, id)),
     ];
 
     if (batchStatements.length > 0) {

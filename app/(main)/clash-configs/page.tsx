@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HydrateClient } from "@/server/api/trpc-server";
-import { api } from "@/server/api/trpc-server";
+import { api, HydrateClient } from "@/server/api/trpc-server";
 import { ClashConfigTable } from "./clash-config-table";
 import { CreateClashConfigDialog } from "./create-clash-config-dialog";
 
@@ -13,13 +12,13 @@ export default async function ClashConfigsPage() {
         <div className="flex items-center gap-4">
           <CardTitle>Clash 配置 ({configs.length})</CardTitle>
           <HydrateClient>
-          <CreateClashConfigDialog />
+            <CreateClashConfigDialog />
           </HydrateClient>
         </div>
       </CardHeader>
       <CardContent>
         <HydrateClient>
-        <ClashConfigTable configs={configs} />
+          <ClashConfigTable configs={configs} />
         </HydrateClient>
       </CardContent>
     </Card>

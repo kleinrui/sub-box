@@ -1,15 +1,15 @@
 "use client";
 
-import { type ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Edit2, Trash2 } from "lucide-react";
 
 import { CollapseDisplay } from "@/components/collapse-display";
-import { DateTime } from "@/components/date-time";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DateTime } from "@/components/date-time";
 import { IdBadge } from "@/components/id-badge";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { type NodeClient, type User } from "@/types";
+import { Button } from "@/components/ui/button";
+import type { NodeClient, User } from "@/types";
 
 interface NodeClientWithUsers extends NodeClient {
   users: { userId: string; enable: boolean; order: number }[];
@@ -43,8 +43,8 @@ interface CreateColumnsOptions {
 }
 
 export function createColumns({ onEdit, onDelete, users = [] }: CreateColumnsOptions): ColumnDef<NodeClientWithUsers>[] {
-  const userMap = new Map(users.map(user => [user.id, user]));
-  
+  const userMap = new Map(users.map((user) => [user.id, user]));
+
   return [
     {
       accessorKey: "id",
@@ -101,4 +101,4 @@ export function createColumns({ onEdit, onDelete, users = [] }: CreateColumnsOpt
       enableHiding: false,
     },
   ];
-} 
+}

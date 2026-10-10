@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, sqliteTable, text, primaryKey } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // Notice for cursor AI:
 // after change the schema, you need to run the following commands:
@@ -74,16 +74,20 @@ export const nodeClientsRelations = relations(nodeClients, ({ one }) => ({
 }));
 
 // User Client Options table
-export const userClientOptions = sqliteTable("user_client_options", {
-  userId: text("user_id").notNull(),
-  nodeClientId: text("node_client_id").notNull(),
-  enable: integer("enable", { mode: "boolean" }).notNull().default(true),
-  order: integer("order").notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (table) => ({
-  pk: primaryKey(table.userId, table.nodeClientId),
-}));
+export const userClientOptions = sqliteTable(
+  "user_client_options",
+  {
+    userId: text("user_id").notNull(),
+    nodeClientId: text("node_client_id").notNull(),
+    enable: integer("enable", { mode: "boolean" }).notNull().default(true),
+    order: integer("order").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey(table.userId, table.nodeClientId),
+  })
+);
 
 // User Client Options relations
 export const userClientOptionsRelations = relations(userClientOptions, ({ one }) => ({

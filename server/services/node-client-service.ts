@@ -1,11 +1,11 @@
 import "server-only";
 
-import crypto from "crypto";
-import { and, eq, not, inArray } from "drizzle-orm";
-import { type BatchItem } from "drizzle-orm/batch";
+import crypto from "node:crypto";
+import { and, eq, inArray, not } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
-import { type NodeClient, type UserClientOption } from "@/types";
-import { db, type Database } from "../db";
+import type { NodeClient, UserClientOption } from "@/types";
+import { type Database, db } from "../db";
 import { nodeClients, userClientOptions } from "../db/schema";
 
 class NodeClientService {
@@ -70,7 +70,7 @@ class NodeClientService {
       // Delete all user client options
       db.delete(userClientOptions).where(eq(userClientOptions.nodeClientId, id)),
       // Delete the node client
-      db.delete(nodeClients).where(eq(nodeClients.id, id))
+      db.delete(nodeClients).where(eq(nodeClients.id, id)),
     ];
 
     if (batchStatements.length > 0) {
@@ -80,16 +80,12 @@ class NodeClientService {
 
   async getUserClientOptions(nodeClientId: string): Promise<UserClientOption[]> {
     const db = await this.getDb();
-    return db
-      .select()
-      .from(userClientOptions)
-      .where(eq(userClientOptions.nodeClientId, nodeClientId))
-      .orderBy(userClientOptions.order);
+    return db.select().from(userClientOptions).where(eq(userClientOptions.nodeClientId, nodeClientId)).orderBy(userClientOptions.order);
   }
 
   async setUserClientOptions(
-    nodeClientId: string, 
-    userIds: string[], 
+    nodeClientId: string,
+    userIds: string[],
     defaultOptions: Partial<Omit<UserClientOption, "userId" | "nodeClientId" | "createdAt" | "updatedAt">> = {}
   ): Promise<void> {
     const db = await this.getDb();
@@ -102,22 +98,15 @@ class NodeClientService {
     }
 
     // Delete existing options that are not in the new list
-    await db
-      .delete(userClientOptions)
-      .where(
-        and(
-          eq(userClientOptions.nodeClientId, nodeClientId),
-          not(inArray(userClientOptions.userId, userIds))
-        )
-      );
+    await db.delete(userClientOptions).where(and(eq(userClientOptions.nodeClientId, nodeClientId), not(inArray(userClientOptions.userId, userIds))));
 
     // Get existing options
     const existingOptions = await this.getUserClientOptions(nodeClientId);
-    const existingUserIds = new Set(existingOptions.map(o => o.userId));
+    const existingUserIds = new Set(existingOptions.map((o) => o.userId));
 
     // Create new options for users that don't have them
     const newOptions = userIds
-      .filter(userId => !existingUserIds.has(userId))
+      .filter((userId) => !existingUserIds.has(userId))
       .map((userId, index) => ({
         userId,
         nodeClientId,
@@ -147,12 +136,7 @@ class NodeClientService {
     const results = await db
       .update(userClientOptions)
       .set(updateData)
-      .where(
-        and(
-          eq(userClientOptions.nodeClientId, nodeClientId),
-          eq(userClientOptions.userId, userId)
-        )
-      )
+      .where(and(eq(userClientOptions.nodeClientId, nodeClientId), eq(userClientOptions.userId, userId)))
       .returning();
 
     if (!results[0]) {
@@ -167,11 +151,11 @@ class NodeClientService {
     const clients = await this.getAll();
     const options = await db.select().from(userClientOptions);
 
-    return clients.map(client => ({
+    return clients.map((client) => ({
       ...client,
       users: options
-        .filter(opt => opt.nodeClientId === client.id)
-        .map(opt => ({
+        .filter((opt) => opt.nodeClientId === client.id)
+        .map((opt) => ({
           userId: opt.userId,
           enable: opt.enable,
           order: opt.order,
@@ -182,20 +166,13 @@ class NodeClientService {
 
   async getByUserId(userId: string): Promise<(NodeClient & { enable: boolean; order: number })[]> {
     const db = await this.getDb();
-    const options = await db
-      .select()
-      .from(userClientOptions)
-      .where(eq(userClientOptions.userId, userId))
-      .orderBy(userClientOptions.order);
+    const options = await db.select().from(userClientOptions).where(eq(userClientOptions.userId, userId)).orderBy(userClientOptions.order);
 
-    const clientIds = options.map(opt => opt.nodeClientId);
-    const clients = await db
-      .select()
-      .from(nodeClients)
-      .where(inArray(nodeClients.id, clientIds));
+    const clientIds = options.map((opt) => opt.nodeClientId);
+    const clients = await db.select().from(nodeClients).where(inArray(nodeClients.id, clientIds));
 
-    return clients.map(client => {
-      const option = options.find(opt => opt.nodeClientId === client.id);
+    return clients.map((client) => {
+      const option = options.find((opt) => opt.nodeClientId === client.id);
       return {
         ...client,
         enable: option?.enable ?? false,

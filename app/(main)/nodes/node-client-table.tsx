@@ -15,10 +15,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { type Node, type NodeClient, type User } from "@/types";
+import type { Node, NodeClient, User } from "@/types";
+import { api } from "@/utils/api";
 import { createColumns } from "./node-client-columns";
 import { NodeClientForm } from "./node-client-form";
-import { api } from "@/utils/api";
 
 interface NodeClientWithUsers extends NodeClient {
   users: { userId: string; enable: boolean; order: number }[];
@@ -33,10 +33,10 @@ interface NodeClientTableProps {
   users: User[];
 }
 
-export function NodeClientTable({ userId, nodeId, node, nodes, items, users }: NodeClientTableProps) {
+export function NodeClientTable({ userId: _userId, nodeId, node: _node, nodes, items, users }: NodeClientTableProps) {
   const [editingItem, setEditingItem] = useState<NodeClientWithUsers | null>(null);
   const [deletingItem, setDeletingItem] = useState<NodeClientWithUsers | null>(null);
-  
+
   // 使用TRPC mutation删除数据
   const deleteNodeClientMutation = api.nodeClient.delete.useMutation({
     onSuccess: () => {
@@ -63,12 +63,7 @@ export function NodeClientTable({ userId, nodeId, node, nodes, items, users }: N
       <DataTable columns={columns} data={items} />
 
       <PopupSheet open={Boolean(editingItem)} onOpenChange={(open) => !open && setEditingItem(null)} title="编辑客户端">
-        <NodeClientForm
-          client={editingItem ?? undefined}
-          nodes={nodes}
-          onSuccess={() => setEditingItem(null)}
-          nodeId={nodeId}
-        />
+        <NodeClientForm client={editingItem ?? undefined} nodes={nodes} onSuccess={() => setEditingItem(null)} nodeId={nodeId} />
       </PopupSheet>
 
       <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && setDeletingItem(null)}>

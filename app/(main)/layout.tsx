@@ -1,23 +1,14 @@
-import { redirect } from "next/navigation"
-import { api } from "@/server/api/trpc-server"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
+import { redirect } from "next/navigation";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { api } from "@/server/api/trpc-server";
 
-export default async function MainLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const user = await api.auth.getUser();
   if (!user) {
-    redirect("/login")
+    redirect("/login");
   }
 
   return (
@@ -38,11 +29,9 @@ export default async function MainLayout({
               </Breadcrumb>
             </div>
           </header>
-          <div className="flex flex-1 flex-col p-4 pt-0">
-            {children}
-          </div>
+          <div className="flex flex-1 flex-col p-4 pt-0">{children}</div>
         </div>
       </SidebarInset>
     </SidebarProvider>
-  )
-} 
+  );
+}

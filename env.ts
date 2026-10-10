@@ -22,9 +22,7 @@ export const env = createEnv({
     JWT_SECRET: z.string(),
     SESSION_TAG: z.string(),
     SESSION_DURATION: z.coerce.number().int().positive().default(2592000),
-    NODE_ENV: z
-      .enum(["development", "test", "production"])
-      .default("development"),
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   },
 
   /**
@@ -32,7 +30,7 @@ export const env = createEnv({
    * isn't built with invalid env vars. To expose them to the client, prefix them with
    * `NEXT_PUBLIC_`.
    */
-  client: { 
+  client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
   },
 

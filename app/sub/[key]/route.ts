@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { createCaller } from "@/server/api/root";
 import { createTRPCContext } from "@/server/api/trpc";
 
-export async function GET(request: Request, { params }: { params: { key: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ key: string }> }) {
   try {
+    const { key } = await params;
     const url = new URL(request.url);
     const configKey = url.searchParams.get("config");
     const headers = new Headers(request.headers);
@@ -11,13 +12,13 @@ export async function GET(request: Request, { params }: { params: { key: string 
     // 创建TRPC上下文和调用器
     const context = await createTRPCContext({ headers });
     const caller = createCaller(context);
-    
+
     // 使用TRPC调用获取订阅内容
     const yaml = await caller.subscription.getSubscriptionByKey({
-      key: params.key,
+      key,
       configId: configKey || undefined,
     });
-    
+
     // 返回最终的YAML
     return new NextResponse(yaml, {
       headers: {

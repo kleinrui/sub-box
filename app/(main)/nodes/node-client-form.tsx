@@ -1,16 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Node, type NodeClient } from "@/types";
+import type { Node, NodeClient } from "@/types";
 import { api } from "@/utils/api";
 
 const formSchema = z.object({
@@ -24,12 +24,12 @@ interface NodeClientFormProps {
   client?: NodeClient;
   nodes: Node[];
   onSuccess?: () => void;
-  nodeId?: string; 
+  nodeId?: string;
 }
 
 export function NodeClientForm({ client, nodes, onSuccess, nodeId }: NodeClientFormProps) {
   const router = useRouter();
-  
+
   // 使用TRPC mutations
   const createNodeClientMutation = api.nodeClient.create.useMutation({
     onSuccess: () => {
@@ -67,7 +67,7 @@ export function NodeClientForm({ client, nodes, onSuccess, nodeId }: NodeClientF
         id: client.id,
         data: data,
       });
-        } else {
+    } else {
       createNodeClientMutation.mutate(data);
     }
   }

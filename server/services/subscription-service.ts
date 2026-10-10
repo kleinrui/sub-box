@@ -1,23 +1,18 @@
 import "server-only";
 
-import { type Subconverter } from "@/types";
-import { subconverterService } from "./subconverter-service";
+import type { Subconverter } from "@/types";
 import { nodeClientService } from "./node-client-service";
+import { subconverterService } from "./subconverter-service";
 
 class SubscriptionService {
-  async generateSubscription(params: {
-    userId: string;
-    subconverterId?: string | null;
-  }): Promise<string> {
+  async generateSubscription(params: { userId: string; subconverterId?: string | null }): Promise<string> {
     const { userId, subconverterId } = params;
 
     // Get all node clients and their user options
     const clients = await nodeClientService.getByUserId(userId);
 
     // Filter enabled clients for the user and sort by order
-    const enabledClients = clients
-      .filter(client => client.enable)
-      .sort((a, b) => a.order - b.order);
+    const enabledClients = clients.filter((client) => client.enable).sort((a, b) => a.order - b.order);
 
     if (enabledClients.length === 0) {
       throw new Error("No enabled nodes found");

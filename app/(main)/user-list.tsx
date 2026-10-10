@@ -1,25 +1,25 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { CollapseDisplay } from "@/components/collapse-display"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { type User } from "@/types"
-import { Badge } from "@/components/ui/badge"
-import { Link2, Settings } from "lucide-react"
-import { IdBadge } from "@/components/id-badge"
-import { DateTime } from "@/components/date-time"
+import { Link2, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CollapseDisplay } from "@/components/collapse-display";
+import { DateTime } from "@/components/date-time";
+import { IdBadge } from "@/components/id-badge";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { User } from "@/types";
 
 interface UserListProps {
-  users: User[]
+  users: User[];
 }
 
 export function UserList({ users }: UserListProps) {
-  const [baseUrl, setBaseUrl] = useState("")
+  const [baseUrl, setBaseUrl] = useState("");
 
   useEffect(() => {
-    setBaseUrl(window.location.origin)
-  }, [])
+    setBaseUrl(window.location.origin);
+  }, []);
 
   return (
     <ScrollArea className="h-[calc(100vh-20rem)] pr-4">
@@ -50,11 +50,7 @@ export function UserList({ users }: UserListProps) {
                   <div className="flex items-center gap-2">
                     <Settings className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">转换器：</span>
-                    {user.subconverterId ? (
-                      <IdBadge id={user.subconverterId} />
-                    ) : (
-                      <Badge variant="outline">默认</Badge>
-                    )}
+                    {user.subconverterId ? <IdBadge id={user.subconverterId} /> : <Badge variant="outline">默认</Badge>}
                   </div>
                 </div>
               </div>
@@ -63,5 +59,5 @@ export function UserList({ users }: UserListProps) {
         ))}
       </div>
     </ScrollArea>
-  )
-} 
+  );
+}

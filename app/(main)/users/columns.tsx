@@ -1,14 +1,14 @@
 "use client";
 
-import { type ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Edit2, Trash2 } from "lucide-react";
 
 import { CollapseDisplay } from "@/components/collapse-display";
-import { DateTime } from "@/components/date-time";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DateTime } from "@/components/date-time";
 import { IdBadge } from "@/components/id-badge";
 import { Button } from "@/components/ui/button";
-import { type User } from "@/types";
+import type { User } from "@/types";
 
 interface UserActionsProps {
   user: User;
@@ -96,4 +96,4 @@ export function createColumns({ baseUrl, onEdit, onDelete }: CreateColumnsOption
       enableHiding: false,
     },
   ];
-} 
+}

@@ -1,16 +1,15 @@
 import "server-only";
 
-import { type Database } from "../db";
-import { db } from "../db";
-import { users, nodes, nodeClients, subconverters, clashConfigs, userClientOptions } from "../db/schema";
-import { type BatchItem } from "drizzle-orm/batch";
 import { and, eq } from "drizzle-orm";
-import { userService } from "./user-service";
-import { nodeService } from "./node-service";
-import { nodeClientService } from "./node-client-service";
-import { subconverterService } from "./subconverter-service";
+import type { BatchItem } from "drizzle-orm/batch";
+import type { ClashConfig, Node, NodeClient, Subconverter, User, UserClientOption } from "@/types";
+import { type Database, db } from "../db";
+import { clashConfigs, nodeClients, nodes, subconverters, userClientOptions, users } from "../db/schema";
 import { clashConfigService } from "./clash-config-service";
-import { type User, type Node, type NodeClient, type Subconverter, type ClashConfig, type UserClientOption } from "@/types";
+import { nodeClientService } from "./node-client-service";
+import { nodeService } from "./node-service";
+import { subconverterService } from "./subconverter-service";
+import { userService } from "./user-service";
 
 export type ExportData = {
   users: User[];
@@ -108,10 +107,7 @@ class ExportService {
         const existingOptions = await db
           .select()
           .from(userClientOptions)
-          .where(and(
-            eq(userClientOptions.userId, option.userId),
-            eq(userClientOptions.nodeClientId, option.nodeClientId)
-          ));
+          .where(and(eq(userClientOptions.userId, option.userId), eq(userClientOptions.nodeClientId, option.nodeClientId)));
         if (existingOptions.length > 0) continue;
       }
       batchStatements.push(db.insert(userClientOptions).values(option));
@@ -124,4 +120,4 @@ class ExportService {
   }
 }
 
-export const exportService = new ExportService(); 
+export const exportService = new ExportService();

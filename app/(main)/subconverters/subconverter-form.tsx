@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type Subconverter } from "@/types";
+import type { Subconverter } from "@/types";
 import { api } from "@/utils/api";
 
 // 确保与后端API schema定义一致
@@ -19,16 +19,14 @@ const formSchema = z.object({
     .string()
     .url("请输入有效的URL")
     .refine((url) => !url.endsWith("/"), "URL 末尾不能有斜杠"),
-  options: z
-    .string()
-    .refine((str) => {
-      try {
-        new URLSearchParams(str);
-        return true;
-      } catch {
-        return false;
-      }
-    }, "请输入有效的 URL 参数格式"),
+  options: z.string().refine((str) => {
+    try {
+      new URLSearchParams(str);
+      return true;
+    } catch {
+      return false;
+    }
+  }, "请输入有效的 URL 参数格式"),
   isDefault: z.boolean(),
 });
 
@@ -70,7 +68,8 @@ export function SubconverterForm({ subconverter, onSuccess }: SubconverterFormPr
     },
   });
 
-  const defaultOptions = "insert=false&config=https%3A%2F%2Fraw.githubusercontent.com%2FACL4SSR%2FACL4SSR%2Fmaster%2FClash%2Fconfig%2FACL4SSR_Online_Full_NoAuto.ini&emoji=true&list=false&xudp=false&udp=false&tfo=false&expand=true&scv=false&fdn=false&new_name=true";
+  const defaultOptions =
+    "insert=false&config=https%3A%2F%2Fraw.githubusercontent.com%2FACL4SSR%2FACL4SSR%2Fmaster%2FClash%2Fconfig%2FACL4SSR_Online_Full_NoAuto.ini&emoji=true&list=false&xudp=false&udp=false&tfo=false&expand=true&scv=false&fdn=false&new_name=true";
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -82,14 +81,14 @@ export function SubconverterForm({ subconverter, onSuccess }: SubconverterFormPr
   });
 
   function onSubmit(formData: FormData) {
-        if (subconverter) {
+    if (subconverter) {
       updateSubconverterMutation.mutate({
         id: subconverter.id,
         data: formData,
       });
-        } else {
+    } else {
       createSubconverterMutation.mutate(formData);
-        }
+    }
   }
 
   async function verifyUrl() {
@@ -103,9 +102,7 @@ export function SubconverterForm({ subconverter, onSuccess }: SubconverterFormPr
     verifyUrlMutation.mutate(url);
   }
 
-  const isPending = createSubconverterMutation.isPending || 
-                  updateSubconverterMutation.isPending || 
-                  verifyUrlMutation.isPending;
+  const isPending = createSubconverterMutation.isPending || updateSubconverterMutation.isPending || verifyUrlMutation.isPending;
 
   return (
     <Form {...form}>

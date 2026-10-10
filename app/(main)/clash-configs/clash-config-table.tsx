@@ -15,10 +15,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { type ClashConfig } from "@/types";
-import { createColumns } from "./columns";
-import { ClashConfigForm } from "./clash-config-form";
+import type { ClashConfig } from "@/types";
 import { api } from "@/utils/api";
+import { ClashConfigForm } from "./clash-config-form";
+import { createColumns } from "./columns";
 
 interface ClashConfigTableProps {
   configs: ClashConfig[];

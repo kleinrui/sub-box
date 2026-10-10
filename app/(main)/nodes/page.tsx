@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HydrateClient } from "@/server/api/trpc-server";
-import { api } from "@/server/api/trpc-server";
+import { api, HydrateClient } from "@/server/api/trpc-server";
 import { CreateNodeDialog } from "./create-node-dialog";
 import { NodeTable } from "./node-table";
 
@@ -14,13 +13,13 @@ export default async function NodesPage() {
         <div className="flex items-center gap-4">
           <CardTitle>节点管理 ({nodes.length})</CardTitle>
           <HydrateClient>
-          <CreateNodeDialog />
+            <CreateNodeDialog />
           </HydrateClient>
         </div>
       </CardHeader>
       <CardContent>
         <HydrateClient>
-        <NodeTable nodes={nodes} users={users} />
+          <NodeTable nodes={nodes} users={users} />
         </HydrateClient>
       </CardContent>
     </Card>

@@ -15,11 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { type Node, type NodeClient, type User } from "@/types";
-import { createColumns } from "./columns";
-import { NodeForm } from "./node-form";
-import { NodeClientTable } from "./node-client-table";
+import type { Node, NodeClient, User } from "@/types";
 import { api } from "@/utils/api";
+import { createColumns } from "./columns";
+import { NodeClientTable } from "./node-client-table";
+import { NodeForm } from "./node-form";
 
 interface NodeWithItems extends Node {
   items: (NodeClient & { users: { userId: string; enable: boolean; order: number }[] })[];
@@ -33,7 +33,7 @@ interface NodeTableProps {
 export function NodeTable({ nodes, users }: NodeTableProps) {
   const [editingItem, setEditingItem] = useState<NodeWithItems | null>(null);
   const [deletingItem, setDeletingItem] = useState<NodeWithItems | null>(null);
-  
+
   // 使用TRPC删除节点
   const deleteNodeMutation = api.node.delete.useMutation({
     onSuccess: () => {
@@ -59,15 +59,7 @@ export function NodeTable({ nodes, users }: NodeTableProps) {
       <DataTable
         columns={columns}
         data={nodes}
-        expandedContent={(node) => (
-          <NodeClientTable
-            nodeId={node.id}
-            node={node}
-            nodes={[node]}
-            items={node.items}
-            users={users}
-          />
-        )}
+        expandedContent={(node) => <NodeClientTable nodeId={node.id} node={node} nodes={[node]} items={node.items} users={users} />}
         expandedTitle={(node) => `节点 ${node.name} 的客户端列表 (${node.items.length})`}
         enableColumnVisibility
         enableGlobalSearch

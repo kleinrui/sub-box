@@ -1,15 +1,14 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Edit2, Trash2 } from "lucide-react";
-
 import { CollapseDisplay } from "@/components/collapse-display";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DateTime } from "@/components/date-time";
 import { IdBadge } from "@/components/id-badge";
-import { Button } from "@/components/ui/button";
-import { type Node as DbNode, type NodeClient, type User } from "@/types";
-import { type ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import type { Node as DbNode, NodeClient, User } from "@/types";
 
 interface CreateColumnsOptions {
   userId: string;
@@ -19,25 +18,31 @@ interface CreateColumnsOptions {
   onDelete: (item: NodeClient & { users: { userId: string; enable: boolean; order: number; virtualOrder?: number }[] }) => void;
 }
 
-export function createColumns({ userId, nodes, users, onEdit, onDelete }: CreateColumnsOptions): ColumnDef<NodeClient & { users: { userId: string; enable: boolean; order: number; virtualOrder?: number }[] }>[] {
+export function createColumns({
+  userId,
+  nodes,
+  users,
+  onEdit,
+  onDelete,
+}: CreateColumnsOptions): ColumnDef<NodeClient & { users: { userId: string; enable: boolean; order: number; virtualOrder?: number }[] }>[] {
   return [
     {
       id: "order",
       accessorFn: (row) => {
-        const userOption = row.users.find(u => u.userId === userId);
+        const userOption = row.users.find((u) => u.userId === userId);
         return userOption?.virtualOrder ?? 0;
       },
       header: ({ column }) => <DataTableColumnHeader column={column} title="顺序" />,
       cell: ({ row }) => {
-        const userOption = row.original.users.find(u => u.userId === userId);
+        const userOption = row.original.users.find((u) => u.userId === userId);
         return userOption?.virtualOrder ?? 0;
       },
       meta: {
         title: "顺序",
       },
       sortingFn: (rowA, rowB) => {
-        const orderA = rowA.original.users.find(u => u.userId === userId)?.order ?? 0;
-        const orderB = rowB.original.users.find(u => u.userId === userId)?.order ?? 0;
+        const orderA = rowA.original.users.find((u) => u.userId === userId)?.order ?? 0;
+        const orderB = rowB.original.users.find((u) => u.userId === userId)?.order ?? 0;
         return orderA - orderB;
       },
     },
@@ -93,12 +98,12 @@ export function createColumns({ userId, nodes, users, onEdit, onDelete }: Create
     {
       id: "status",
       accessorFn: (row) => {
-        const userOption = row.users.find(u => u.userId === userId);
+        const userOption = row.users.find((u) => u.userId === userId);
         return userOption?.enable;
       },
       header: ({ column }) => <DataTableColumnHeader column={column} title="状态" />,
       cell: ({ row }) => {
-        const userOption = row.original.users.find(u => u.userId === userId);
+        const userOption = row.original.users.find((u) => u.userId === userId);
         return userOption?.enable ? "启用" : "禁用";
       },
       meta: {
@@ -137,4 +142,4 @@ export function createColumns({ userId, nodes, users, onEdit, onDelete }: Create
       enableHiding: false,
     },
   ];
-} 
+}
