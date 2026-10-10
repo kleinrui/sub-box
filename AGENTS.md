@@ -4,7 +4,7 @@
 
 ## 技术栈
 
-- Next.js 15 API（App Router）+ vinext / Vite + React 19 + Node.js 22
+- Next.js 16 API（App Router）+ vinext / Vite + React 19 + Node.js 22
 - vinext 部署到 Cloudflare Workers
 - tRPC + TanStack Query / Table
 - Drizzle ORM + Cloudflare D1

@@ -42,7 +42,11 @@ export function DateTime({ date, format = "datetime" }: DateTimeProps) {
   }
 
   try {
-    return <time dateTime={d.toISOString()}>{d.toLocaleString("zh-CN", options)}</time>;
+    return (
+      <time dateTime={d.toISOString()} suppressHydrationWarning>
+        {d.toLocaleString("zh-CN", options)}
+      </time>
+    );
   } catch (_error) {
     return <span>Invalid Date</span>;
   }

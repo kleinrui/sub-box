@@ -5,11 +5,11 @@ alwaysApply: true
 ---
 # 项目结构概述
 
-这是一个基于 Next.js 15 的订阅管理应用程序，用于管理节点和用户的订阅。
+这是一个基于 Next.js 16 的订阅管理应用程序，用于管理节点和用户的订阅。
 
 ## 主要技术栈
 
-- Next.js 15 API 与 Node.js 22
+- Next.js 16 API 与 Node.js 22
 - vinext / Vite 用于部署到 Cloudflare Workers
 - UI 组件使用 shadcn 和 Tailwind CSS
 - 数据库管理使用 Drizzle
