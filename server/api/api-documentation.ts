@@ -62,16 +62,16 @@ Object.assign(apiOperations, {
   },
   "subconverter.verifyUrl": {
     summary: "验证订阅转换器连接",
-    description: "请求给定地址的 /version，返回版本文本；无法连接时返回错误。不写入数据库，但属于 POST 操作，需要读写 Token。",
+    description: "请求给定地址的 /version，返回版本文本；无法连接时返回错误。不写入数据库。",
     input: "订阅转换器根 URL，不带末尾斜杠，例如 https://converter.example.com。",
   },
   "subscription.generateSubscription": {
     summary: "生成用户的 Clash 订阅",
-    description: "读取用户已启用的节点客户端并调用订阅转换器，返回 Clash YAML 字符串。subconverterId 可指定转换器；省略时使用服务端默认选择。可能访问外部服务，需要读写 Token。",
+    description: "读取用户已启用的节点客户端并调用订阅转换器，返回 Clash YAML 字符串。subconverterId 可指定转换器；省略时使用服务端默认选择。可能访问外部服务。",
   },
   "clashConfig.mergeConfig": {
     summary: "将配置合并到 Clash YAML",
-    description: "读取 configId 的配置，将全局配置合并到 baseYaml 并前置 rules，返回合并后的 YAML 字符串。不保存结果；配置不存在时返回错误。属于 POST 操作，需要读写 Token。",
+    description: "读取 configId 的配置，将全局配置合并到 baseYaml 并前置 rules，返回合并后的 YAML 字符串。不保存结果；配置不存在时返回错误。",
   },
   "export.exportAll": {
     summary: "导出全部业务数据",

@@ -147,3 +147,11 @@ SUB_BOX_TEST_URL=http://localhost:3000 bun with-env bun run test
 公开的文本和 Markdown 文档明确使用 UTF-8：Cloudflare 静态资源通过 `public/_headers` 设置响应头，本地 Vite 开发服务器提供相同编码。
 
 生成的 `public/openapi.json`、`public/llms.txt`、`public/llms-full.txt` 和 `public/api/docs/` 不提交 Git。开发启动、构建、预览、类型检查和部署命令会先生成文档，全新检出后无需手动补文件；只提交生成脚本和接口说明源文件。
+
+### WebMCP（浏览器内的 agent）
+
+在支持 WebMCP 的浏览器中打开本站并登录管理员，管理页面会根据公开 API 自动注册对应的业务工具。工具沿用当前登录会话，无需 API Token，也无需配置 MCP server。保持管理页面打开；退出登录或离开管理页面后工具会注销。不支持 WebMCP 的浏览器仍可正常使用页面与 HTTP API。
+
+工具名如 `sub_box_node_getAll`、`sub_box_node_create`。对象参数直接传入（如 `{ "name": "测试节点" }`）；字符串参数使用 `{ "input": "记录 ID" }`；无参数工具传 `{}`。参数 schema 与字段说明来自生成的 OpenAPI，调用结果直接包含业务数据，不需要处理 tRPC 包装。写入后会刷新页面及查询缓存。删除与关联替换的副作用会在工具描述中注明；鉴权和参数校验仍由现有 tRPC 执行，不公开凭据管理和整库导入工具。
+
+实现优先使用 `document.modelContext`，兼容 `navigator.modelContext`，仅在顶层管理页面注册。Codex 内置浏览器支持情况见 [Site tools 文档](https://learn.chatgpt.com/docs/webmcp)；Chrome 本地测试需按 [WebMCP 文档](https://developer.chrome.com/docs/ai/webmcp) 启用测试功能。

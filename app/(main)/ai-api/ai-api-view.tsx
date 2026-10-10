@@ -77,9 +77,11 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>Agent 接入</CardTitle>
-          <CardDescription>OpenAPI 文档公开可读，数据操作需要 API Token。无需配置 MCP server 或模型 API Key。</CardDescription>
+          <CardDescription>OpenAPI 文档公开可读，通过 HTTP API 操作数据需要 API Token。无需配置 MCP server 或模型 API Key。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-sm">支持 WebMCP 的浏览器可在登录后直接使用本站工具，沿用当前管理员权限，无需 API Token。保持管理页面打开即可。</p>
+          <p className="text-sm">使用 HTTP API 时，按以下步骤接入：</p>
           <ol className="grid gap-3 text-sm sm:grid-cols-3">
             <li className="rounded-lg bg-muted/50 p-3">
               <span className="font-medium">1. 创建 Token</span>

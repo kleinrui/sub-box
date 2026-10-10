@@ -4,6 +4,7 @@ import { AppBreadcrumbs } from "@/components/app-breadcrumbs";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { WebMcp } from "@/components/webmcp";
 import { api } from "@/server/api/trpc-server";
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
@@ -14,6 +15,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   return (
     <SidebarProvider>
+      <WebMcp />
       <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:translate-y-0">
         跳到主内容
       </a>
