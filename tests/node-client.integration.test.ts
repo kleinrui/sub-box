@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 const base = process.env.SUB_BOX_TEST_URL;
+const localTest = base ? test : test.skip;
 
-test("共享客户端关联可独立添加、更新和取消（仅本地运行）", { skip: !base }, async () => {
+localTest("共享客户端关联可独立添加、更新和取消（仅本地运行）", async () => {
   assert.ok(base && ["localhost", "127.0.0.1"].includes(new URL(base).hostname), "测试仅允许本地站点");
   const login = await fetch(`${base}/api/login`, {
     method: "POST",

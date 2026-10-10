@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { apiOperations } from "../server/api/api-documentation";
 
 const base = process.env.SUB_BOX_TEST_URL;
-test("API Token 权限、撤销和公开文档（仅本地运行）", { skip: !base }, async () => {
+const localTest = base ? test : test.skip;
+localTest("API Token 权限、撤销和公开文档（仅本地运行）", async () => {
   assert.ok(base && ["localhost", "127.0.0.1"].includes(new URL(base).hostname), "测试仅允许本地站点");
   const docResponse = await fetch(`${base}/api/openapi.json`);
   assert.equal(docResponse.status, 200);

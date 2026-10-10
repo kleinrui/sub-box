@@ -115,6 +115,8 @@ export function UserNodeClientTable({ userId, items, nodes, users }: UserNodeCli
               users: item.users.map((user) => (user.userId === userId ? { ...user, virtualOrder: index } : user)),
             }))}
           defaultSorting={[]}
+          enableColumnVisibility
+          defaultColumnVisibility={{ id: false, updatedAt: false }}
         />
       </div>
 

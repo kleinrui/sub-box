@@ -13,6 +13,7 @@
     }
   },
   "scripts": {
+    "test": "bun test --preload ./tests/setup.mjs tests",
     "db:up": "bun with-env drizzle-kit up",
     "db:generate": "bun with-env drizzle-kit generate",
     "db:push": "bun with-env drizzle-kit push",

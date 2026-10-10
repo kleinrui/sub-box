@@ -1,9 +1,8 @@
-import { Check, Copy } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+"use client";
 
+import { useId, useState } from "react";
+import { CopyButton } from "@/components/copy-button";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CollapseDisplayProps {
   url: string;
@@ -11,48 +10,37 @@ interface CollapseDisplayProps {
 }
 
 export function CollapseDisplay({ url, maxLength = 50 }: CollapseDisplayProps) {
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (copied) {
-      const timer = setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [copied]);
-
-  const displayUrl = url.length > maxLength ? `${url.slice(0, maxLength)}...` : url;
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      toast("已复制到剪贴板");
-    } catch (error) {
-      toast("复制失败", {
-        description: (error as Error).message,
-      });
-    }
-  };
+  const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
+  const truncated = url.length > maxLength;
 
   return (
-    <div className="flex items-center gap-2">
-      <TooltipProvider>
-        <Tooltip open={url.length > maxLength ? showTooltip : false}>
-          <TooltipTrigger className="truncate text-left" onMouseEnter={() => setShowTooltip(true)} onMouseLeave={() => setShowTooltip(false)}>
-            {displayUrl}
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="max-w-[400px] break-all">{url}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={copyToClipboard}>
-        {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-        <span className="sr-only">复制</span>
-      </Button>
+    <div className="min-w-0 max-w-full space-y-2">
+      <div className="flex min-w-0 items-center gap-1">
+        <span className={`min-w-0 flex-1 font-mono text-xs select-all ${truncated ? "truncate" : "break-all"}`}>{truncated ? `${url.slice(0, maxLength)}…` : url}</span>
+        {truncated && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="shrink-0 px-2"
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            onClick={(event) => {
+              event.stopPropagation();
+              setExpanded(!expanded);
+            }}
+          >
+            {expanded ? "收起" : "展开"}
+          </Button>
+        )}
+        <CopyButton value={url} label="复制" variant="ghost" className="shrink-0 px-2" />
+      </div>
+      {expanded && (
+        <p id={contentId} className="max-w-full break-all rounded-md bg-muted p-3 text-xs font-mono select-all">
+          {url}
+        </p>
+      )}
     </div>
   );
 }
