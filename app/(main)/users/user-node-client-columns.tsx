@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Unlink } from "lucide-react";
 import { CollapseDisplay } from "@/components/collapse-display";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DateTime } from "@/components/date-time";
@@ -15,7 +15,8 @@ interface CreateColumnsOptions {
   nodes: DbNode[];
   users: User[];
   onEdit: (item: NodeClient & { users: { userId: string; enable: boolean; order: number; virtualOrder?: number }[] }) => void;
-  onDelete: (item: NodeClient & { users: { userId: string; enable: boolean; order: number; virtualOrder?: number }[] }) => void;
+  onRemove: (item: NodeClient & { users: { userId: string; enable: boolean; order: number; virtualOrder?: number }[] }) => void;
+  isPending?: boolean;
 }
 
 export function createColumns({
@@ -23,7 +24,8 @@ export function createColumns({
   nodes,
   users,
   onEdit,
-  onDelete,
+  onRemove,
+  isPending,
 }: CreateColumnsOptions): ColumnDef<NodeClient & { users: { userId: string; enable: boolean; order: number; virtualOrder?: number }[] }>[] {
   return [
     {
@@ -125,13 +127,13 @@ export function createColumns({
         const item = row.original;
         return (
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(item)} disabled={isPending} title="编辑客户端">
               <Edit2 className="h-4 w-4" />
               <span className="sr-only">编辑</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => onDelete(item)}>
-              <Trash2 className="h-4 w-4" />
-              <span className="sr-only">删除</span>
+            <Button variant="ghost" size="icon" onClick={() => onRemove(item)} disabled={isPending} title="取消关联">
+              <Unlink className="h-4 w-4" />
+              <span className="sr-only">取消与当前用户的关联</span>
             </Button>
           </div>
         );

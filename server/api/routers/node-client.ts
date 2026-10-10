@@ -92,6 +92,23 @@ export const nodeClientRouter = createTRPCRouter({
       return await nodeClientService.updateUserClientOption(input.nodeClientId, input.userId, input.data);
     }),
 
+  setUserClientOption: protectedProcedure
+    .input(
+      z.object({
+        nodeClientId: z.string().min(1),
+        userId: z.string().min(1),
+        data: userClientOptionUpdateSchema.optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await nodeClientService.setUserClientOption(input.nodeClientId, input.userId, input.data);
+    }),
+
+  removeUserClientOption: protectedProcedure.input(z.object({ nodeClientId: z.string().min(1), userId: z.string().min(1) })).mutation(async ({ input }) => {
+    await nodeClientService.removeUserClientOption(input.nodeClientId, input.userId);
+    return { success: true };
+  }),
+
   getNodeClientsWithUsers: protectedProcedure.query(async () => {
     return await nodeClientService.getNodeClientsWithUsers();
   }),

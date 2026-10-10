@@ -1,7 +1,9 @@
 "use client";
 
-import { ArrowUpDown } from "lucide-react";
-import { useState } from "react";
+import { ArrowUpDown, Link2, Plus } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -23,124 +25,153 @@ import { createColumns } from "./user-node-client-columns";
 import { UserNodeClientForm } from "./user-node-client-form";
 import { UserNodeClientOrderForm } from "./user-node-client-order-form";
 
+type ClientWithUsers = NodeClient & { users: { userId: string; enable: boolean; order: number }[] };
+
 interface UserNodeClientTableProps {
   userId: string;
-  items: (NodeClient & { users: { userId: string; enable: boolean; order: number }[] })[];
+  items: ClientWithUsers[];
   nodes: DbNode[];
   users: User[];
 }
 
 export function UserNodeClientTable({ userId, items, nodes, users }: UserNodeClientTableProps) {
-  const [editingItem, setEditingItem] = useState<(NodeClient & { users: { userId: string; enable: boolean; order: number }[] }) | null>(null);
-  const [deletingItem, setDeletingItem] = useState<(NodeClient & { users: { userId: string; enable: boolean; order: number }[] }) | null>(null);
+  const router = useRouter();
+  const utils = api.useUtils();
+  const [clientForm, setClientForm] = useState<{ mode: "create" | "associate"; item?: ClientWithUsers } | null>(null);
+  const [removingItem, setRemovingItem] = useState<ClientWithUsers | null>(null);
   const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const [isClientFormPending, setIsClientFormPending] = useState(false);
+  const removingRef = useRef(false);
 
-  // 使用TRPC删除节点客户端
-  const deleteNodeClientMutation = api.nodeClient.delete.useMutation({
-    onSuccess: () => {
-      toast.success("删除成功");
-      setDeletingItem(null);
+  async function refreshClients() {
+    await Promise.allSettled([utils.nodeClient.invalidate(), utils.node.getAllWithClients.invalidate()]);
+    router.refresh();
+  }
+
+  const removeUserClientOptionMutation = api.nodeClient.removeUserClientOption.useMutation({
+    onSuccess: async () => {
+      await refreshClients();
+      toast.success("已取消当前用户的客户端关联");
+      setRemovingItem(null);
     },
-    onError: (error) => {
-      toast.error(`删除失败: ${error.message}`);
+    onError: (error) => toast.error(`取消关联失败：${error.message}`),
+    onSettled: () => {
+      removingRef.current = false;
     },
   });
 
-  function onDelete(item: NodeClient & { users: { userId: string; enable: boolean; order: number }[] }) {
-    deleteNodeClientMutation.mutate(item.id);
+  function onRemove(item: ClientWithUsers) {
+    if (removingRef.current) return;
+    removingRef.current = true;
+    removeUserClientOptionMutation.mutate({ nodeClientId: item.id, userId });
   }
 
   const columns = createColumns({
     userId,
     nodes,
     users,
-    onEdit: setEditingItem,
-    onDelete: setDeletingItem,
+    onEdit: (item) => setClientForm({ mode: "create", item }),
+    onRemove: setRemovingItem,
+    isPending: removeUserClientOptionMutation.isPending,
   });
 
   return (
     <>
       <div className="py-2">
-        <div className="flex mb-2">
-          <Button variant="outline" size="sm" onClick={() => setIsEditingOrder(true)}>
+        <div className="flex flex-wrap gap-2 mb-2">
+          <Button variant="outline" size="sm" onClick={() => setClientForm({ mode: "create" })} disabled={nodes.length === 0}>
+            <Plus className="mr-2 h-4 w-4" />
+            添加客户端
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setClientForm({ mode: "associate" })}>
+            <Link2 className="mr-2 h-4 w-4" />
+            关联已有客户端
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setIsEditingOrder(true)} disabled={items.length < 2}>
             <ArrowUpDown className="mr-2 h-4 w-4" />
             编辑顺序
           </Button>
         </div>
+        {nodes.length === 0 && (
+          <p className="mb-2 text-sm text-muted-foreground">
+            暂无节点，请先在{" "}
+            <Link href="/nodes" className="underline underline-offset-4">
+              节点页面
+            </Link>{" "}
+            添加节点，再添加客户端。
+          </p>
+        )}
 
         <DataTable
           columns={columns}
-          data={items
+          data={[...items]
             .sort((a, b) => {
-              const aUser = a.users.find((u) => u.userId === userId);
-              const bUser = b.users.find((u) => u.userId === userId);
+              const aUser = a.users.find((user) => user.userId === userId);
+              const bUser = b.users.find((user) => user.userId === userId);
               return (aUser?.order ?? 0) - (bUser?.order ?? 0);
             })
-            // Map the items to include a virtual order for display
             .map((item, index) => ({
               ...item,
-              users: item.users.map((u) => (u.userId === userId ? { ...u, virtualOrder: index } : u)),
+              users: item.users.map((user) => (user.userId === userId ? { ...user, virtualOrder: index } : user)),
             }))}
           defaultSorting={[]}
         />
       </div>
 
       <PopupSheet
-        open={Boolean(editingItem)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditingItem(null);
-          }
-        }}
-        title="编辑客户端"
+        open={Boolean(clientForm)}
+        onOpenChange={(open) => !open && !isClientFormPending && setClientForm(null)}
+        title={clientForm?.item ? "编辑客户端" : clientForm?.mode === "associate" ? "关联已有客户端" : "添加客户端"}
       >
-        <UserNodeClientForm
-          userId={userId}
-          nodes={nodes}
-          users={users}
-          item={editingItem ?? undefined}
-          onSuccess={() => {
-            setEditingItem(null);
-          }}
-        />
+        {clientForm && (
+          <UserNodeClientForm
+            key={clientForm.item?.id ?? clientForm.mode}
+            userId={userId}
+            nodes={nodes}
+            users={users}
+            item={clientForm.item}
+            mode={clientForm.mode}
+            onSuccess={() => setClientForm(null)}
+            onPendingChange={setIsClientFormPending}
+          />
+        )}
       </PopupSheet>
 
-      <PopupSheet
-        open={isEditingOrder}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsEditingOrder(false);
-          }
-        }}
-        title="编辑顺序"
-      >
-        <UserNodeClientOrderForm
-          userId={userId}
-          items={items}
-          nodes={nodes}
-          onSuccess={() => {
-            setIsEditingOrder(false);
-          }}
-        />
+      <PopupSheet open={isEditingOrder} onOpenChange={(open) => !open && setIsEditingOrder(false)} title="编辑顺序">
+        {isEditingOrder && (
+          <UserNodeClientOrderForm
+            userId={userId}
+            items={items}
+            nodes={nodes}
+            onSuccess={() => {
+              setIsEditingOrder(false);
+              void refreshClients();
+            }}
+          />
+        )}
       </PopupSheet>
 
-      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && setDeletingItem(null)}>
+      <AlertDialog
+        open={Boolean(removingItem)}
+        onOpenChange={(open) => {
+          if (!open && !removeUserClientOptionMutation.isPending) setRemovingItem(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>确定要删除此客户端吗？此操作不可撤销。</AlertDialogDescription>
+            <AlertDialogTitle>确认取消关联</AlertDialogTitle>
+            <AlertDialogDescription>确定要取消此客户端与当前用户的关联吗？客户端会保留在节点中，其他用户仍可使用；之后可重新关联。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={removeUserClientOptionMutation.isPending}>返回</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (deletingItem) {
-                  onDelete(deletingItem);
-                }
+              onClick={(event) => {
+                event.preventDefault();
+                if (removingItem) onRemove(removingItem);
               }}
-              disabled={deleteNodeClientMutation.isPending}
+              disabled={removeUserClientOptionMutation.isPending}
             >
-              {deleteNodeClientMutation.isPending ? "删除中..." : "删除"}
+              {removeUserClientOptionMutation.isPending ? "取消关联中..." : "取消关联"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

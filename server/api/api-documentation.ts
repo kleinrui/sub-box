@@ -45,6 +45,15 @@ Object.assign(apiOperations, {
     summary: "修改一个用户与客户端的关联选项",
     description: "按 nodeClientId 和 userId 定位现有关联，局部修改 enable/order；不会创建新关联。返回完整关联记录，不存在时返回错误。",
   },
+  "nodeClient.setUserClientOption": {
+    summary: "添加或修改一个用户与客户端的关联",
+    description:
+      "按 nodeClientId 和 userId 精确保存一个关联，不影响其他用户。用户或客户端不存在时返回错误。已有时仅更新 data 中明确提供的 enable/order；省略的字段保持原值。新增默认 enable=true，order 追加到该用户现有客户端末尾。返回完整关联记录，可安全重试。",
+  },
+  "nodeClient.removeUserClientOption": {
+    summary: "取消一个用户与客户端的关联",
+    description: "按 nodeClientId 和 userId 精确取消关联，不删除客户端，也不影响其他用户。返回 {success: true}，关联原本不存在时也成功。全局删除客户端使用 nodeClient.delete。",
+  },
   "nodeClient.getNodeClientsWithUsers": { summary: "列出客户端及其用户关联", description: "返回客户端数组，每个客户端的 users 包含 userId、enable 和 order，按 order 排序。" },
   "nodeClient.getByUserId": {
     summary: "查询用户关联的客户端",

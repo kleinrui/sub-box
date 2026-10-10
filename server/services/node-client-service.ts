@@ -1,21 +1,22 @@
 import "server-only";
 
 import crypto from "node:crypto";
-import { and, eq, inArray, not } from "drizzle-orm";
+import { and, eq, inArray, max, not } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { NodeClient, UserClientOption } from "@/types";
-import { type Database, db } from "../db";
-import { nodeClients, userClientOptions } from "../db/schema";
+import type { Database } from "../db";
+import { nodeClients, userClientOptions, users } from "../db/schema";
 
-class NodeClientService {
-  private dbPromise: Promise<Database>;
+export class NodeClientService {
+  private dbPromise?: Promise<Database>;
 
-  constructor() {
-    this.dbPromise = db();
+  constructor(database?: Database) {
+    if (database) this.dbPromise = Promise.resolve(database);
   }
 
   private async getDb() {
+    this.dbPromise ??= import("../db").then(({ db }) => db());
     return await this.dbPromise;
   }
 
@@ -144,6 +145,45 @@ class NodeClientService {
     }
 
     return results[0];
+  }
+
+  async setUserClientOption(
+    nodeClientId: string,
+    userId: string,
+    data: Partial<Omit<UserClientOption, "userId" | "nodeClientId" | "createdAt" | "updatedAt">> = {}
+  ): Promise<UserClientOption> {
+    const db = await this.getDb();
+    const [client, matchedUsers] = await Promise.all([this.get(nodeClientId), db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1)]);
+    if (!client) throw new Error("节点客户端不存在，可能已被删除");
+    if (!matchedUsers[0]) throw new Error("用户不存在，可能已被删除");
+    const now = new Date().toISOString();
+    const [lastOption] = await db
+      .select({ order: max(userClientOptions.order) })
+      .from(userClientOptions)
+      .where(eq(userClientOptions.userId, userId));
+    const [option] = await db
+      .insert(userClientOptions)
+      .values({
+        nodeClientId,
+        userId,
+        enable: data.enable ?? true,
+        order: data.order ?? (lastOption?.order ?? -1) + 1,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [userClientOptions.userId, userClientOptions.nodeClientId],
+        set: { ...data, updatedAt: now },
+      })
+      .returning();
+
+    if (!option) throw new Error("Failed to save user client option");
+    return option;
+  }
+
+  async removeUserClientOption(nodeClientId: string, userId: string): Promise<void> {
+    const db = await this.getDb();
+    await db.delete(userClientOptions).where(and(eq(userClientOptions.nodeClientId, nodeClientId), eq(userClientOptions.userId, userId)));
   }
 
   async getNodeClientsWithUsers(): Promise<(NodeClient & { users: { userId: string; enable: boolean; order: number }[] })[]> {

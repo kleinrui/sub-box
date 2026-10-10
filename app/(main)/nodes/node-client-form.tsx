@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -15,7 +16,7 @@ import { api } from "@/utils/api";
 
 const formSchema = z.object({
   nodeId: z.string().min(1, "请选择节点"),
-  url: z.string().min(1, "订阅地址不能为空"),
+  url: z.string().trim().min(1, "订阅地址不能为空"),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -25,33 +26,16 @@ interface NodeClientFormProps {
   nodes: Node[];
   onSuccess?: () => void;
   nodeId?: string;
+  onPendingChange?: (pending: boolean) => void;
 }
 
-export function NodeClientForm({ client, nodes, onSuccess, nodeId }: NodeClientFormProps) {
+export function NodeClientForm({ client, nodes, onSuccess, nodeId, onPendingChange }: NodeClientFormProps) {
   const router = useRouter();
+  const utils = api.useUtils();
+  const submitting = useRef(false);
 
-  // 使用TRPC mutations
-  const createNodeClientMutation = api.nodeClient.create.useMutation({
-    onSuccess: () => {
-      toast.success("创建成功");
-      router.refresh();
-      onSuccess?.();
-    },
-    onError: (error) => {
-      toast.error(`创建失败: ${error.message}`);
-    },
-  });
-
-  const updateNodeClientMutation = api.nodeClient.update.useMutation({
-    onSuccess: () => {
-      toast.success("更新成功");
-      router.refresh();
-      onSuccess?.();
-    },
-    onError: (error) => {
-      toast.error(`更新失败: ${error.message}`);
-    },
-  });
+  const createNodeClientMutation = api.nodeClient.create.useMutation();
+  const updateNodeClientMutation = api.nodeClient.update.useMutation();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -61,18 +45,30 @@ export function NodeClientForm({ client, nodes, onSuccess, nodeId }: NodeClientF
     },
   });
 
-  function onSubmit(data: FormData) {
-    if (client) {
-      updateNodeClientMutation.mutate({
-        id: client.id,
-        data: data,
-      });
-    } else {
-      createNodeClientMutation.mutate(data);
+  async function onSubmit(data: FormData) {
+    if (submitting.current) return;
+    submitting.current = true;
+    onPendingChange?.(true);
+    try {
+      const input = { ...data, nodeId: nodeId ?? data.nodeId };
+      if (client) {
+        await updateNodeClientMutation.mutateAsync({ id: client.id, data: input });
+      } else {
+        await createNodeClientMutation.mutateAsync(input);
+      }
+      await Promise.allSettled([utils.nodeClient.invalidate(), utils.node.getAllWithClients.invalidate()]);
+      router.refresh();
+      toast.success(client ? "客户端更新成功" : "客户端添加成功");
+      onSuccess?.();
+    } catch (error) {
+      toast.error(`${client ? "更新" : "添加"}失败：${error instanceof Error ? error.message : "请重试"}`);
+    } finally {
+      submitting.current = false;
+      onPendingChange?.(false);
     }
   }
 
-  const isPending = createNodeClientMutation.isPending || updateNodeClientMutation.isPending;
+  const isPending = form.formState.isSubmitting || createNodeClientMutation.isPending || updateNodeClientMutation.isPending;
 
   return (
     <Form {...form}>
@@ -83,13 +79,20 @@ export function NodeClientForm({ client, nodes, onSuccess, nodeId }: NodeClientF
           render={({ field }) => (
             <FormItem>
               <FormLabel>节点</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                onValueChange={(value) => field.onChange(value === "__select_node__" ? "" : value)}
+                value={field.value || "__select_node__"}
+                disabled={Boolean(nodeId) || isPending}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="选择节点" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
+                  <SelectItem value="__select_node__" disabled>
+                    选择节点
+                  </SelectItem>
                   {nodes.map((node) => (
                     <SelectItem key={node.id} value={node.id}>
                       {node.name}
@@ -108,7 +111,7 @@ export function NodeClientForm({ client, nodes, onSuccess, nodeId }: NodeClientF
             <FormItem>
               <FormLabel>订阅地址</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} disabled={isPending} placeholder="填写客户端订阅地址" />
               </FormControl>
               <FormMessage />
             </FormItem>
