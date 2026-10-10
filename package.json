@@ -26,7 +26,7 @@
     "d1:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "dev": "vite dev --port 3000",
     "dev:next": "bun with-env next dev",
-    "build": "vite build",
+    "build": "bun run openapi:generate && vite build",
     "build:next": "bun with-env next build",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -39,9 +39,10 @@
     "with-env": "dotenv -e .dev.vars --",
     "with-local-db": "cross-env LOCAL_DB_PATH=$(find .wrangler/state/v3/d1/miniflare-D1DatabaseObject -type f -name '*.sqlite' -print -quit)",
     "dev:vinext": "vite dev --port 3000",
-    "build:vinext": "vite build",
+    "build:vinext": "bun run openapi:generate && vite build",
     "start:vinext": "wrangler dev --config dist/server/wrangler.json",
-    "deploy:vinext": "vinext-cloudflare deploy --config dist/server/wrangler.json"
+    "deploy:vinext": "vinext-cloudflare deploy --config dist/server/wrangler.json",
+    "openapi:generate": "bun scripts/generate-openapi.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -120,6 +121,7 @@
     "@biomejs/biome": "2.5.15",
     "@cloudflare/vite-plugin": "1",
     "@cloudflare/workers-types": "^4.20260702.1",
+    "@trpc/openapi": "11.19.0-alpha",
     "@types/ms": "^2.1.0",
     "@types/node": "^22.18.11",
     "@types/react": "^19.3.0",

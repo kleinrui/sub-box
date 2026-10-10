@@ -1,3 +1,4 @@
+import { apiTokenRouter } from "@/server/api/routers/api-token";
 import { authRouter } from "@/server/api/routers/auth";
 import { clashConfigRouter } from "@/server/api/routers/clash-config";
 import { exportRouter } from "@/server/api/routers/export";
@@ -20,6 +21,7 @@ export const appRouter = createTRPCRouter({
   clashConfig: clashConfigRouter,
   subscription: subscriptionRouter,
   auth: authRouter,
+  apiToken: apiTokenRouter,
   export: exportRouter,
 });
 

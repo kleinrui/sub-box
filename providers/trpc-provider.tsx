@@ -49,7 +49,11 @@ export function TRPCProvider(props: { children: React.ReactNode }) {
     api.createClient({
       links: [
         loggerLink({
-          enabled: (op) => process.env.NODE_ENV === "development" || (op.direction === "down" && op.result instanceof Error),
+          enabled: (op) => {
+            const shouldLog = process.env.NODE_ENV === "development" || (op.direction === "down" && op.result instanceof Error);
+            // 部分 tRPC 版本的 down 类型未声明 path；缺少路径时也不记录凭据。
+            return shouldLog && "path" in op && typeof op.path === "string" && !op.path.startsWith("apiToken.");
+          },
         }),
         httpBatchLink({
           transformer: superjson,

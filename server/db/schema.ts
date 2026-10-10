@@ -100,3 +100,16 @@ export const userClientOptionsRelations = relations(userClientOptions, ({ one })
     references: [nodeClients.id],
   }),
 }));
+
+// API Token：只保存 SHA-256 哈希，完整凭据只在创建时返回。
+export const apiTokens = sqliteTable("api_tokens", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  prefix: text("prefix").notNull(),
+  permission: text("permission", { enum: ["read", "write"] }).notNull(),
+  createdAt: text("created_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  lastUsedAt: text("last_used_at"),
+  revokedAt: text("revoked_at"),
+});

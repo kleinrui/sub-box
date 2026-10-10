@@ -15,8 +15,8 @@ const createContext = async (req: NextRequest) => {
   });
 };
 
-const handler = (req: NextRequest) =>
-  fetchRequestHandler({
+const handler = async (req: NextRequest) => {
+  const response = await fetchRequestHandler({
     endpoint: "/api/trpc",
     req,
     router: appRouter,
@@ -28,5 +28,9 @@ const handler = (req: NextRequest) =>
           }
         : undefined,
   });
+
+  response.headers.set("Cache-Control", "no-store");
+  return response;
+};
 
 export { handler as GET, handler as POST };

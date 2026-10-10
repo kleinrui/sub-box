@@ -1,0 +1,4330 @@
+{
+  "openapi": "3.1.1",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "info": {
+    "title": "Sub Box 管理 API",
+    "version": "1.0.0",
+    "description": "通过 HTTP 操作 Sub Box 的节点、用户、订阅和 Clash 配置。此文档公开，不含实际业务数据。所有列出的操作均要求 Authorization: Bearer <API Token>，从本地环境变量 SUB_BOX_API_TOKEN 读取凭据，不要写入聊天、URL 或日志。只读 Token 仅允许 GET；POST 均需读写 Token，包括订阅生成和配置合并。Token 在后台「AI 与 API」页面创建和撤销。\n\n协议：这是 tRPC + SuperJSON HTTP API，不是 REST。使用非批量请求（不要加 batch=1）。GET 参数只有一个 input，其值是 URL 编码后的 JSON，例如读取用户：/user.getById?input=%7B%22json%22%3A%22USER_ID%22%7D；无参数查询直接 GET /user.getAll。POST 使用 Content-Type: application/json，请求体为 {\"json\":业务参数}，例如修改用户：{\"json\":{\"id\":\"USER_ID\",\"data\":{\"name\":\"新名称\"}}}。成功数据位于 result.data.json；错误位于 error.json，包含 message 和 data.code。不要把 tRPC 外层包装当作业务记录。所有业务日期均为 ISO 字符串，YAML 以 JSON 字符串返回。\n\n先查询记录并使用真实 ID，再执行修改。名称、ID、配置 key 和订阅密钥不可混用。客户端关联列表替换会删除未列出的关联。不要盲目重试创建操作；网络失败后先查询确认。401 表示凭据缺失、无效、过期或撤销，403 表示权限不足，400 表示参数错误，500 表示服务或外部转换失败。返回记录可能包含订阅凭据，应仅用于管理员授权的任务。"
+  },
+  "servers": [
+    {
+      "url": "/api/trpc"
+    }
+  ],
+  "paths": {
+    "/user.getAll": {
+      "get": {
+        "operationId": "user.getAll",
+        "tags": [
+          "user"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "description": "便于管理员识别的显示名称。"
+                                  },
+                                  "subscriptionKey": {
+                                    "type": "string",
+                                    "description": "用户唯一订阅密钥，用于访问订阅链接；创建时提供随机且唯一的值。属于敏感凭据。"
+                                  },
+                                  "subconverterId": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "订阅转换器 ID；null 表示未指定。通过 subconverter.getAll 查询可用值。"
+                                  },
+                                  "createdAt": {
+                                    "type": "string",
+                                    "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name",
+                                  "subscriptionKey",
+                                  "subconverterId",
+                                  "createdAt",
+                                  "updatedAt"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "summary": "列出所有用户",
+        "description": "返回用户数组，无分页。包含订阅密钥和指定的订阅转换器。先查询并确认记录 ID，再修改或删除。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/user.getById": {
+      "get": {
+        "operationId": "user.getById",
+        "tags": [
+          "user"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "description": "便于管理员识别的显示名称。"
+                                    },
+                                    "subscriptionKey": {
+                                      "type": "string",
+                                      "description": "用户唯一订阅密钥，用于访问订阅链接；创建时提供随机且唯一的值。属于敏感凭据。"
+                                    },
+                                    "subconverterId": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ],
+                                      "description": "订阅转换器 ID；null 表示未指定。通过 subconverter.getAll 查询可用值。"
+                                    },
+                                    "createdAt": {
+                                      "type": "string",
+                                      "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                    },
+                                    "updatedAt": {
+                                      "type": "string",
+                                      "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "subscriptionKey",
+                                    "subconverterId",
+                                    "createdAt",
+                                    "updatedAt"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "input",
+            "in": "query",
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "json": {
+                      "type": "string",
+                      "description": "用户 ID 字符串。传入字符串本身，不是 {id: ...}。"
+                    }
+                  },
+                  "required": [
+                    "json"
+                  ],
+                  "description": "SuperJSON 包装；业务值放在 json 字段。"
+                }
+              }
+            },
+            "description": "将 {json: 业务参数} JSON 序列化后做 URL 编码，作为 input 查询参数。"
+          }
+        ],
+        "summary": "读取一个用户",
+        "description": "返回用户对象；不存在时返回 null。包含订阅密钥和指定的订阅转换器。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/user.create": {
+      "post": {
+        "operationId": "user.create",
+        "tags": [
+          "user"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "便于管理员识别的显示名称。"
+                                },
+                                "subscriptionKey": {
+                                  "type": "string",
+                                  "description": "用户唯一订阅密钥，用于访问订阅链接；创建时提供随机且唯一的值。属于敏感凭据。"
+                                },
+                                "subconverterId": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "订阅转换器 ID；null 表示未指定。通过 subconverter.getAll 查询可用值。"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "subscriptionKey",
+                                "subconverterId",
+                                "createdAt",
+                                "updatedAt"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "便于管理员识别的显示名称。"
+                      },
+                      "subscriptionKey": {
+                        "type": "string",
+                        "description": "用户唯一订阅密钥，用于访问订阅链接；创建时提供随机且唯一的值。属于敏感凭据。"
+                      },
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      },
+                      "subconverterId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "订阅转换器 ID；null 表示未指定。通过 subconverter.getAll 查询可用值。"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "subscriptionKey"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "创建用户",
+        "description": "新建并返回完整用户对象。ID、createdAt、updatedAt 由服务端生成；不要传 id。包含订阅密钥和指定的订阅转换器。网络结果不明确时先查询，避免重复创建。\n需要读写 Token。"
+      }
+    },
+    "/user.update": {
+      "post": {
+        "operationId": "user.update",
+        "tags": [
+          "user"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "便于管理员识别的显示名称。"
+                                },
+                                "subscriptionKey": {
+                                  "type": "string",
+                                  "description": "用户唯一订阅密钥，用于访问订阅链接；创建时提供随机且唯一的值。属于敏感凭据。"
+                                },
+                                "subconverterId": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "订阅转换器 ID；null 表示未指定。通过 subconverter.getAll 查询可用值。"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "subscriptionKey",
+                                "subconverterId",
+                                "createdAt",
+                                "updatedAt"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      },
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "便于管理员识别的显示名称。"
+                          },
+                          "subscriptionKey": {
+                            "type": "string",
+                            "description": "用户唯一订阅密钥，用于访问订阅链接；创建时提供随机且唯一的值。属于敏感凭据。"
+                          },
+                          "subconverterId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "订阅转换器 ID；null 表示未指定。通过 subconverter.getAll 查询可用值。"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "data"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "修改用户",
+        "description": "按 id 局部修改，data 中省略的字段保持原值。返回更新后的完整对象；不存在时返回错误。包含订阅密钥和指定的订阅转换器。\n需要读写 Token。"
+      }
+    },
+    "/user.delete": {
+      "post": {
+        "operationId": "user.delete",
+        "tags": [
+          "user"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "success": {
+                                  "type": "boolean",
+                                  "description": "操作执行完成标记。"
+                                }
+                              },
+                              "required": [
+                                "success"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "string",
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "删除用户",
+        "description": "按 ID 删除，不可撤销。同时删除该用户与所有节点客户端的关联。先查询确认目标；返回 {success: true}，即使目标原本不存在也可能成功。\n需要读写 Token。"
+      }
+    },
+    "/node.getAll": {
+      "get": {
+        "operationId": "node.getAll",
+        "tags": [
+          "node"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "description": "便于管理员识别的显示名称。"
+                                  },
+                                  "createdAt": {
+                                    "type": "string",
+                                    "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "description": "节点类型：custom、3x-ui 或 external-subscription；创建默认 custom。"
+                                  },
+                                  "host": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "节点主机地址；可以为 null。"
+                                  },
+                                  "accessUrl": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "节点管理或访问地址；可以为 null，可能包含敏感信息。"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name",
+                                  "createdAt",
+                                  "updatedAt",
+                                  "type",
+                                  "host",
+                                  "accessUrl"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "summary": "列出所有节点",
+        "description": "返回节点数组，无分页。节点是节点客户端的容器；创建节点后需创建 nodeClient 并关联用户。先查询并确认记录 ID，再修改或删除。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/node.getById": {
+      "get": {
+        "operationId": "node.getById",
+        "tags": [
+          "node"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "description": "便于管理员识别的显示名称。"
+                                    },
+                                    "createdAt": {
+                                      "type": "string",
+                                      "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                    },
+                                    "updatedAt": {
+                                      "type": "string",
+                                      "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "description": "节点类型：custom、3x-ui 或 external-subscription；创建默认 custom。"
+                                    },
+                                    "host": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ],
+                                      "description": "节点主机地址；可以为 null。"
+                                    },
+                                    "accessUrl": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ],
+                                      "description": "节点管理或访问地址；可以为 null，可能包含敏感信息。"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "createdAt",
+                                    "updatedAt",
+                                    "type",
+                                    "host",
+                                    "accessUrl"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "input",
+            "in": "query",
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "json": {
+                      "type": "string",
+                      "description": "节点 ID 字符串。传入字符串本身，不是 {id: ...}。"
+                    }
+                  },
+                  "required": [
+                    "json"
+                  ],
+                  "description": "SuperJSON 包装；业务值放在 json 字段。"
+                }
+              }
+            },
+            "description": "将 {json: 业务参数} JSON 序列化后做 URL 编码，作为 input 查询参数。"
+          }
+        ],
+        "summary": "读取一个节点",
+        "description": "返回节点对象；不存在时返回 null。节点是节点客户端的容器；创建节点后需创建 nodeClient 并关联用户。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/node.create": {
+      "post": {
+        "operationId": "node.create",
+        "tags": [
+          "node"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "便于管理员识别的显示名称。"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "description": "节点类型：custom、3x-ui 或 external-subscription；创建默认 custom。"
+                                },
+                                "host": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "节点主机地址；可以为 null。"
+                                },
+                                "accessUrl": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "节点管理或访问地址；可以为 null，可能包含敏感信息。"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "createdAt",
+                                "updatedAt",
+                                "type",
+                                "host",
+                                "accessUrl"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "便于管理员识别的显示名称。"
+                      },
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      },
+                      "type": {
+                        "type": "string",
+                        "description": "节点类型：custom、3x-ui 或 external-subscription；创建默认 custom。"
+                      },
+                      "host": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "节点主机地址；可以为 null。"
+                      },
+                      "accessUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "节点管理或访问地址；可以为 null，可能包含敏感信息。"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "创建节点",
+        "description": "新建并返回完整节点对象。ID、createdAt、updatedAt 由服务端生成；不要传 id。节点是节点客户端的容器；创建节点后需创建 nodeClient 并关联用户。网络结果不明确时先查询，避免重复创建。\n需要读写 Token。"
+      }
+    },
+    "/node.update": {
+      "post": {
+        "operationId": "node.update",
+        "tags": [
+          "node"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "便于管理员识别的显示名称。"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "description": "节点类型：custom、3x-ui 或 external-subscription；创建默认 custom。"
+                                },
+                                "host": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "节点主机地址；可以为 null。"
+                                },
+                                "accessUrl": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "节点管理或访问地址；可以为 null，可能包含敏感信息。"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "createdAt",
+                                "updatedAt",
+                                "type",
+                                "host",
+                                "accessUrl"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      },
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "便于管理员识别的显示名称。"
+                          },
+                          "type": {
+                            "type": "string",
+                            "description": "节点类型：custom、3x-ui 或 external-subscription；创建默认 custom。"
+                          },
+                          "host": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "节点主机地址；可以为 null。"
+                          },
+                          "accessUrl": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "节点管理或访问地址；可以为 null，可能包含敏感信息。"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "data"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "修改节点",
+        "description": "按 id 局部修改，data 中省略的字段保持原值。返回更新后的完整对象；不存在时返回错误。节点是节点客户端的容器；创建节点后需创建 nodeClient 并关联用户。\n需要读写 Token。"
+      }
+    },
+    "/node.delete": {
+      "post": {
+        "operationId": "node.delete",
+        "tags": [
+          "node"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "success": {
+                                  "type": "boolean",
+                                  "description": "操作执行完成标记。"
+                                }
+                              },
+                              "required": [
+                                "success"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "string",
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "删除节点",
+        "description": "按 ID 删除，不可撤销。同时删除节点下全部客户端及其用户关联。先查询确认目标；返回 {success: true}，即使目标原本不存在也可能成功。\n需要读写 Token。"
+      }
+    },
+    "/nodeClient.getAll": {
+      "get": {
+        "operationId": "nodeClient.getAll",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                  },
+                                  "createdAt": {
+                                    "type": "string",
+                                    "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "url": {
+                                    "type": "string",
+                                    "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                                  },
+                                  "nodeId": {
+                                    "type": "string",
+                                    "description": "所属节点 ID，通过 node.getAll 查询。"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "createdAt",
+                                  "updatedAt",
+                                  "url",
+                                  "nodeId"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "summary": "列出所有节点客户端",
+        "description": "返回节点客户端数组，无分页。url 是代理分享链接或外部订阅地址；nodeId 指向所属节点。先查询并确认记录 ID，再修改或删除。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/nodeClient.getById": {
+      "get": {
+        "operationId": "nodeClient.getById",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                    },
+                                    "createdAt": {
+                                      "type": "string",
+                                      "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                    },
+                                    "updatedAt": {
+                                      "type": "string",
+                                      "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                    },
+                                    "url": {
+                                      "type": "string",
+                                      "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                                    },
+                                    "nodeId": {
+                                      "type": "string",
+                                      "description": "所属节点 ID，通过 node.getAll 查询。"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "createdAt",
+                                    "updatedAt",
+                                    "url",
+                                    "nodeId"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "input",
+            "in": "query",
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "json": {
+                      "type": "string",
+                      "description": "节点客户端 ID 字符串。传入字符串本身，不是 {id: ...}。"
+                    }
+                  },
+                  "required": [
+                    "json"
+                  ],
+                  "description": "SuperJSON 包装；业务值放在 json 字段。"
+                }
+              }
+            },
+            "description": "将 {json: 业务参数} JSON 序列化后做 URL 编码，作为 input 查询参数。"
+          }
+        ],
+        "summary": "读取一个节点客户端",
+        "description": "返回节点客户端对象；不存在时返回 null。url 是代理分享链接或外部订阅地址；nodeId 指向所属节点。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/nodeClient.create": {
+      "post": {
+        "operationId": "nodeClient.create",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                                },
+                                "nodeId": {
+                                  "type": "string",
+                                  "description": "所属节点 ID，通过 node.getAll 查询。"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "createdAt",
+                                "updatedAt",
+                                "url",
+                                "nodeId"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                      },
+                      "nodeId": {
+                        "type": "string",
+                        "description": "所属节点 ID，通过 node.getAll 查询。"
+                      },
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "nodeId"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "创建节点客户端",
+        "description": "新建并返回完整节点客户端对象。ID、createdAt、updatedAt 由服务端生成；不要传 id。url 是代理分享链接或外部订阅地址；nodeId 指向所属节点。网络结果不明确时先查询，避免重复创建。\n需要读写 Token。"
+      }
+    },
+    "/nodeClient.update": {
+      "post": {
+        "operationId": "nodeClient.update",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                                },
+                                "nodeId": {
+                                  "type": "string",
+                                  "description": "所属节点 ID，通过 node.getAll 查询。"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "createdAt",
+                                "updatedAt",
+                                "url",
+                                "nodeId"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      },
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                          },
+                          "nodeId": {
+                            "type": "string",
+                            "description": "所属节点 ID，通过 node.getAll 查询。"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "data"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "修改节点客户端",
+        "description": "按 id 局部修改，data 中省略的字段保持原值。返回更新后的完整对象；不存在时返回错误。url 是代理分享链接或外部订阅地址；nodeId 指向所属节点。\n需要读写 Token。"
+      }
+    },
+    "/nodeClient.delete": {
+      "post": {
+        "operationId": "nodeClient.delete",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "success": {
+                                  "type": "boolean",
+                                  "description": "操作执行完成标记。"
+                                }
+                              },
+                              "required": [
+                                "success"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "string",
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "删除节点客户端",
+        "description": "按 ID 删除，不可撤销。同时删除该客户端与所有用户的关联。先查询确认目标；返回 {success: true}，即使目标原本不存在也可能成功。\n需要读写 Token。"
+      }
+    },
+    "/subconverter.getAll": {
+      "get": {
+        "operationId": "subconverter.getAll",
+        "tags": [
+          "subconverter"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/Subconverter"
+                              },
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "summary": "列出所有订阅转换器",
+        "description": "返回订阅转换器数组，无分页。url 为转换服务地址，options 是 URL 查询参数字符串。先查询并确认记录 ID，再修改或删除。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/subconverter.getById": {
+      "get": {
+        "operationId": "subconverter.getById",
+        "tags": [
+          "subconverter"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "oneOf": [
+                                {
+                                  "$ref": "#/components/schemas/Subconverter"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "input",
+            "in": "query",
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "json": {
+                      "type": "string",
+                      "description": "订阅转换器 ID 字符串。传入字符串本身，不是 {id: ...}。"
+                    }
+                  },
+                  "required": [
+                    "json"
+                  ],
+                  "description": "SuperJSON 包装；业务值放在 json 字段。"
+                }
+              }
+            },
+            "description": "将 {json: 业务参数} JSON 序列化后做 URL 编码，作为 input 查询参数。"
+          }
+        ],
+        "summary": "读取一个订阅转换器",
+        "description": "返回订阅转换器对象；不存在时返回 null。url 为转换服务地址，options 是 URL 查询参数字符串。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/subconverter.create": {
+      "post": {
+        "operationId": "subconverter.create",
+        "tags": [
+          "subconverter"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "$ref": "#/components/schemas/Subconverter",
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                      },
+                      "options": {
+                        "type": "string",
+                        "description": "订阅转换器 URL 查询参数字符串，不带问号，例如 emoji=true&udp=true。"
+                      },
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      },
+                      "isDefault": {
+                        "type": "boolean",
+                        "description": "是否标记为默认订阅转换器；创建省略时为 false。"
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "options"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "创建订阅转换器",
+        "description": "新建并返回完整订阅转换器对象。ID、createdAt、updatedAt 由服务端生成；不要传 id。url 为转换服务地址，options 是 URL 查询参数字符串。网络结果不明确时先查询，避免重复创建。\n需要读写 Token。"
+      }
+    },
+    "/subconverter.update": {
+      "post": {
+        "operationId": "subconverter.update",
+        "tags": [
+          "subconverter"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "$ref": "#/components/schemas/Subconverter",
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      },
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                          },
+                          "options": {
+                            "type": "string",
+                            "description": "订阅转换器 URL 查询参数字符串，不带问号，例如 emoji=true&udp=true。"
+                          },
+                          "isDefault": {
+                            "type": "boolean",
+                            "description": "是否标记为默认订阅转换器；创建省略时为 false。"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "data"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "修改订阅转换器",
+        "description": "按 id 局部修改，data 中省略的字段保持原值。返回更新后的完整对象；不存在时返回错误。url 为转换服务地址，options 是 URL 查询参数字符串。\n需要读写 Token。"
+      }
+    },
+    "/subconverter.delete": {
+      "post": {
+        "operationId": "subconverter.delete",
+        "tags": [
+          "subconverter"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "success": {
+                                  "type": "boolean",
+                                  "description": "操作执行完成标记。"
+                                }
+                              },
+                              "required": [
+                                "success"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "string",
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "删除订阅转换器",
+        "description": "按 ID 删除，不可撤销。使用它的用户的 subconverterId 会被清空。先查询确认目标；返回 {success: true}，即使目标原本不存在也可能成功。\n需要读写 Token。"
+      }
+    },
+    "/clashConfig.getAll": {
+      "get": {
+        "operationId": "clashConfig.getAll",
+        "tags": [
+          "clashConfig"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "description": "便于管理员识别的显示名称。"
+                                  },
+                                  "createdAt": {
+                                    "type": "string",
+                                    "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "key": {
+                                    "type": "string",
+                                    "description": "Clash 配置的唯一标识，用于订阅 URL 选择配置；不同于用户 subscriptionKey。"
+                                  },
+                                  "globalConfig": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "Clash 全局配置的 YAML 映射字符串；null 可清空配置。"
+                                  },
+                                  "rules": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "Clash 规则的 YAML 列表字符串；合并时添加到原规则之前，null 可清空。"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name",
+                                  "createdAt",
+                                  "updatedAt",
+                                  "key",
+                                  "globalConfig",
+                                  "rules"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "summary": "列出所有Clash 配置",
+        "description": "返回Clash 配置数组，无分页。globalConfig 和 rules 都是 YAML 字符串。先查询并确认记录 ID，再修改或删除。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/clashConfig.getById": {
+      "get": {
+        "operationId": "clashConfig.getById",
+        "tags": [
+          "clashConfig"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "description": "便于管理员识别的显示名称。"
+                                    },
+                                    "createdAt": {
+                                      "type": "string",
+                                      "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                    },
+                                    "updatedAt": {
+                                      "type": "string",
+                                      "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                    },
+                                    "key": {
+                                      "type": "string",
+                                      "description": "Clash 配置的唯一标识，用于订阅 URL 选择配置；不同于用户 subscriptionKey。"
+                                    },
+                                    "globalConfig": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ],
+                                      "description": "Clash 全局配置的 YAML 映射字符串；null 可清空配置。"
+                                    },
+                                    "rules": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ],
+                                      "description": "Clash 规则的 YAML 列表字符串；合并时添加到原规则之前，null 可清空。"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "createdAt",
+                                    "updatedAt",
+                                    "key",
+                                    "globalConfig",
+                                    "rules"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "input",
+            "in": "query",
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "json": {
+                      "type": "string",
+                      "description": "Clash 配置 ID 字符串。传入字符串本身，不是 {id: ...}。"
+                    }
+                  },
+                  "required": [
+                    "json"
+                  ],
+                  "description": "SuperJSON 包装；业务值放在 json 字段。"
+                }
+              }
+            },
+            "description": "将 {json: 业务参数} JSON 序列化后做 URL 编码，作为 input 查询参数。"
+          }
+        ],
+        "summary": "读取一个Clash 配置",
+        "description": "返回Clash 配置对象；不存在时返回 null。globalConfig 和 rules 都是 YAML 字符串。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/clashConfig.create": {
+      "post": {
+        "operationId": "clashConfig.create",
+        "tags": [
+          "clashConfig"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "便于管理员识别的显示名称。"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "key": {
+                                  "type": "string",
+                                  "description": "Clash 配置的唯一标识，用于订阅 URL 选择配置；不同于用户 subscriptionKey。"
+                                },
+                                "globalConfig": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "Clash 全局配置的 YAML 映射字符串；null 可清空配置。"
+                                },
+                                "rules": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "Clash 规则的 YAML 列表字符串；合并时添加到原规则之前，null 可清空。"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "createdAt",
+                                "updatedAt",
+                                "key",
+                                "globalConfig",
+                                "rules"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "便于管理员识别的显示名称。"
+                      },
+                      "key": {
+                        "type": "string",
+                        "description": "Clash 配置的唯一标识，用于订阅 URL 选择配置；不同于用户 subscriptionKey。"
+                      },
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      },
+                      "globalConfig": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Clash 全局配置的 YAML 映射字符串；null 可清空配置。"
+                      },
+                      "rules": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Clash 规则的 YAML 列表字符串；合并时添加到原规则之前，null 可清空。"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "key"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "创建Clash 配置",
+        "description": "新建并返回完整Clash 配置对象。ID、createdAt、updatedAt 由服务端生成；不要传 id。globalConfig 和 rules 都是 YAML 字符串。网络结果不明确时先查询，避免重复创建。\n需要读写 Token。"
+      }
+    },
+    "/clashConfig.update": {
+      "post": {
+        "operationId": "clashConfig.update",
+        "tags": [
+          "clashConfig"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "便于管理员识别的显示名称。"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "key": {
+                                  "type": "string",
+                                  "description": "Clash 配置的唯一标识，用于订阅 URL 选择配置；不同于用户 subscriptionKey。"
+                                },
+                                "globalConfig": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "Clash 全局配置的 YAML 映射字符串；null 可清空配置。"
+                                },
+                                "rules": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "Clash 规则的 YAML 列表字符串；合并时添加到原规则之前，null 可清空。"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "createdAt",
+                                "updatedAt",
+                                "key",
+                                "globalConfig",
+                                "rules"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                      },
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "便于管理员识别的显示名称。"
+                          },
+                          "key": {
+                            "type": "string",
+                            "description": "Clash 配置的唯一标识，用于订阅 URL 选择配置；不同于用户 subscriptionKey。"
+                          },
+                          "globalConfig": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Clash 全局配置的 YAML 映射字符串；null 可清空配置。"
+                          },
+                          "rules": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Clash 规则的 YAML 列表字符串；合并时添加到原规则之前，null 可清空。"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "data"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "修改Clash 配置",
+        "description": "按 id 局部修改，data 中省略的字段保持原值。返回更新后的完整对象；不存在时返回错误。globalConfig 和 rules 都是 YAML 字符串。\n需要读写 Token。"
+      }
+    },
+    "/clashConfig.delete": {
+      "post": {
+        "operationId": "clashConfig.delete",
+        "tags": [
+          "clashConfig"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "success": {
+                                  "type": "boolean",
+                                  "description": "操作执行完成标记。"
+                                }
+                              },
+                              "required": [
+                                "success"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "string",
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "删除Clash 配置",
+        "description": "按 ID 删除，不可撤销。配置删除后将无法用于订阅合并。先查询确认目标；返回 {success: true}，即使目标原本不存在也可能成功。\n需要读写 Token。"
+      }
+    },
+    "/node.getAllWithClients": {
+      "get": {
+        "operationId": "node.getAllWithClients",
+        "tags": [
+          "node"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                        },
+                                        "createdAt": {
+                                          "type": "string",
+                                          "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                        },
+                                        "updatedAt": {
+                                          "type": "string",
+                                          "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                        },
+                                        "url": {
+                                          "type": "string",
+                                          "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                                        },
+                                        "nodeId": {
+                                          "type": "string",
+                                          "description": "所属节点 ID，通过 node.getAll 查询。"
+                                        },
+                                        "users": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "userId": {
+                                                "type": "string",
+                                                "description": "用户 ID，通过 user.getAll 查询。"
+                                              },
+                                              "enable": {
+                                                "type": "boolean",
+                                                "description": "该用户是否启用此客户端；新关联默认 true。"
+                                              },
+                                              "order": {
+                                                "type": "number",
+                                                "description": "该用户订阅中的客户端排列顺序，数值越小越靠前。"
+                                              }
+                                            },
+                                            "required": [
+                                              "userId",
+                                              "enable",
+                                              "order"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "description": "用户记录或客户端关联的用户列表，具体字段见元素 schema。"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "createdAt",
+                                        "updatedAt",
+                                        "url",
+                                        "nodeId",
+                                        "users"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "description": "该节点下的节点客户端及用户关联。"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "description": "便于管理员识别的显示名称。"
+                                  },
+                                  "createdAt": {
+                                    "type": "string",
+                                    "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "description": "节点类型：custom、3x-ui 或 external-subscription；创建默认 custom。"
+                                  },
+                                  "host": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "节点主机地址；可以为 null。"
+                                  },
+                                  "accessUrl": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "节点管理或访问地址；可以为 null，可能包含敏感信息。"
+                                  }
+                                },
+                                "required": [
+                                  "items",
+                                  "id",
+                                  "name",
+                                  "createdAt",
+                                  "updatedAt",
+                                  "type",
+                                  "host",
+                                  "accessUrl"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "summary": "列出节点及客户端和用户关联",
+        "description": "返回节点数组；每个节点的 items 是客户端数组，每个客户端的 users 含 userId、enable、order。用于整体检查节点与用户关系。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/nodeClient.getUserClientOptions": {
+      "get": {
+        "operationId": "nodeClient.getUserClientOptions",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "createdAt": {
+                                    "type": "string",
+                                    "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "userId": {
+                                    "type": "string",
+                                    "description": "用户 ID，通过 user.getAll 查询。"
+                                  },
+                                  "nodeClientId": {
+                                    "type": "string",
+                                    "description": "节点客户端 ID，通过 nodeClient.getAll 查询。"
+                                  },
+                                  "enable": {
+                                    "type": "boolean",
+                                    "description": "该用户是否启用此客户端；新关联默认 true。"
+                                  },
+                                  "order": {
+                                    "type": "number",
+                                    "description": "该用户订阅中的客户端排列顺序，数值越小越靠前。"
+                                  }
+                                },
+                                "required": [
+                                  "createdAt",
+                                  "updatedAt",
+                                  "userId",
+                                  "nodeClientId",
+                                  "enable",
+                                  "order"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "input",
+            "in": "query",
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "json": {
+                      "type": "string",
+                      "description": "节点客户端 ID 字符串。"
+                    }
+                  },
+                  "required": [
+                    "json"
+                  ],
+                  "description": "SuperJSON 包装；业务值放在 json 字段。"
+                }
+              }
+            },
+            "description": "将 {json: 业务参数} JSON 序列化后做 URL 编码，作为 input 查询参数。"
+          }
+        ],
+        "summary": "查询客户端的用户关联",
+        "description": "返回指定客户端的用户关联数组，含 userId、nodeClientId、enable 和 order，按 order 排序。修改关联前先读取。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/nodeClient.setUserClientOptions": {
+      "post": {
+        "operationId": "nodeClient.setUserClientOptions",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "success": {
+                                  "type": "boolean",
+                                  "description": "操作执行完成标记。"
+                                }
+                              },
+                              "required": [
+                                "success"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "nodeClientId": {
+                        "type": "string",
+                        "description": "节点客户端 ID，通过 nodeClient.getAll 查询。"
+                      },
+                      "userIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "最终完整的用户 ID 集合；空数组解除该客户端全部关联。"
+                      },
+                      "defaultOptions": {
+                        "type": "object",
+                        "properties": {
+                          "enable": {
+                            "type": "boolean",
+                            "description": "该用户是否启用此客户端；新关联默认 true。"
+                          },
+                          "order": {
+                            "type": "number",
+                            "description": "该用户订阅中的客户端排列顺序，数值越小越靠前。"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "仅供新增关联使用的默认选项，不会覆盖现有关联。"
+                      }
+                    },
+                    "required": [
+                      "nodeClientId",
+                      "userIds"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "替换客户端关联的用户集合",
+        "description": "userIds 是最终完整用户列表，不是要追加的列表。未列出的现有关联会被删除；空数组会解除全部关联。已有用户的 enable/order 保持不变；defaultOptions 仅用于新关联，默认 enable=true，order 自动分配。追加用户时先查询并合并原有 ID。返回 {success: true}。\n需要读写 Token。"
+      }
+    },
+    "/nodeClient.updateUserClientOption": {
+      "post": {
+        "operationId": "nodeClient.updateUserClientOption",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "object",
+                              "properties": {
+                                "createdAt": {
+                                  "type": "string",
+                                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                },
+                                "userId": {
+                                  "type": "string",
+                                  "description": "用户 ID，通过 user.getAll 查询。"
+                                },
+                                "nodeClientId": {
+                                  "type": "string",
+                                  "description": "节点客户端 ID，通过 nodeClient.getAll 查询。"
+                                },
+                                "enable": {
+                                  "type": "boolean",
+                                  "description": "该用户是否启用此客户端；新关联默认 true。"
+                                },
+                                "order": {
+                                  "type": "number",
+                                  "description": "该用户订阅中的客户端排列顺序，数值越小越靠前。"
+                                }
+                              },
+                              "required": [
+                                "createdAt",
+                                "updatedAt",
+                                "userId",
+                                "nodeClientId",
+                                "enable",
+                                "order"
+                              ],
+                              "additionalProperties": false,
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "enable": {
+                            "type": "boolean",
+                            "description": "该用户是否启用此客户端；新关联默认 true。"
+                          },
+                          "order": {
+                            "type": "number",
+                            "description": "该用户订阅中的客户端排列顺序，数值越小越靠前。"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "description": "用户 ID，通过 user.getAll 查询。"
+                      },
+                      "nodeClientId": {
+                        "type": "string",
+                        "description": "节点客户端 ID，通过 nodeClient.getAll 查询。"
+                      }
+                    },
+                    "required": [
+                      "data",
+                      "userId",
+                      "nodeClientId"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "修改一个用户与客户端的关联选项",
+        "description": "按 nodeClientId 和 userId 定位现有关联，局部修改 enable/order；不会创建新关联。返回完整关联记录，不存在时返回错误。\n需要读写 Token。"
+      }
+    },
+    "/nodeClient.getNodeClientsWithUsers": {
+      "get": {
+        "operationId": "nodeClient.getNodeClientsWithUsers",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                  },
+                                  "createdAt": {
+                                    "type": "string",
+                                    "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "url": {
+                                    "type": "string",
+                                    "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                                  },
+                                  "nodeId": {
+                                    "type": "string",
+                                    "description": "所属节点 ID，通过 node.getAll 查询。"
+                                  },
+                                  "users": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "userId": {
+                                          "type": "string",
+                                          "description": "用户 ID，通过 user.getAll 查询。"
+                                        },
+                                        "enable": {
+                                          "type": "boolean",
+                                          "description": "该用户是否启用此客户端；新关联默认 true。"
+                                        },
+                                        "order": {
+                                          "type": "number",
+                                          "description": "该用户订阅中的客户端排列顺序，数值越小越靠前。"
+                                        }
+                                      },
+                                      "required": [
+                                        "userId",
+                                        "enable",
+                                        "order"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "description": "用户记录或客户端关联的用户列表，具体字段见元素 schema。"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "createdAt",
+                                  "updatedAt",
+                                  "url",
+                                  "nodeId",
+                                  "users"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "summary": "列出客户端及其用户关联",
+        "description": "返回客户端数组，每个客户端的 users 包含 userId、enable 和 order，按 order 排序。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/nodeClient.getByUserId": {
+      "get": {
+        "operationId": "nodeClient.getByUserId",
+        "tags": [
+          "nodeClient"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                                  },
+                                  "createdAt": {
+                                    "type": "string",
+                                    "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "updatedAt": {
+                                    "type": "string",
+                                    "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                                  },
+                                  "url": {
+                                    "type": "string",
+                                    "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                                  },
+                                  "nodeId": {
+                                    "type": "string",
+                                    "description": "所属节点 ID，通过 node.getAll 查询。"
+                                  },
+                                  "enable": {
+                                    "type": "boolean",
+                                    "description": "该用户是否启用此客户端；新关联默认 true。"
+                                  },
+                                  "order": {
+                                    "type": "number",
+                                    "description": "该用户订阅中的客户端排列顺序，数值越小越靠前。"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "createdAt",
+                                  "updatedAt",
+                                  "url",
+                                  "nodeId",
+                                  "enable",
+                                  "order"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "input",
+            "in": "query",
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "json": {
+                      "type": "string",
+                      "description": "用户 ID 字符串。"
+                    }
+                  },
+                  "required": [
+                    "json"
+                  ],
+                  "description": "SuperJSON 包装；业务值放在 json 字段。"
+                }
+              }
+            },
+            "description": "将 {json: 业务参数} JSON 序列化后做 URL 编码，作为 input 查询参数。"
+          }
+        ],
+        "summary": "查询用户关联的客户端",
+        "description": "返回用户关联的客户端数组，附 enable 和 order。包含已禁用项；不要假定结果已排序，需要时按 order 排序。\n只读或读写 Token 均可调用。"
+      }
+    },
+    "/subconverter.verifyUrl": {
+      "post": {
+        "operationId": "subconverter.verifyUrl",
+        "tags": [
+          "subconverter"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "string",
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "string",
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "验证订阅转换器连接",
+        "description": "请求给定地址的 /version，返回版本文本；无法连接时返回错误。不写入数据库，但属于 POST 操作，需要读写 Token。\n需要读写 Token。"
+      }
+    },
+    "/subscription.generateSubscription": {
+      "post": {
+        "operationId": "subscription.generateSubscription",
+        "tags": [
+          "subscription"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "string",
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "userId": {
+                        "type": "string",
+                        "description": "用户 ID，通过 user.getAll 查询。"
+                      },
+                      "subconverterId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "订阅转换器 ID；null 表示未指定。通过 subconverter.getAll 查询可用值。"
+                      }
+                    },
+                    "required": [
+                      "userId"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "生成用户的 Clash 订阅",
+        "description": "读取用户已启用的节点客户端并调用订阅转换器，返回 Clash YAML 字符串。subconverterId 可指定转换器；省略时使用服务端默认选择。可能访问外部服务，需要读写 Token。\n需要读写 Token。"
+      }
+    },
+    "/clashConfig.mergeConfig": {
+      "post": {
+        "operationId": "clashConfig.mergeConfig",
+        "tags": [
+          "clashConfig"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "type": "string",
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "object",
+                    "properties": {
+                      "baseYaml": {
+                        "type": "string",
+                        "description": "待合并的完整 Clash YAML 字符串。"
+                      },
+                      "configId": {
+                        "type": "string",
+                        "description": "Clash 配置 ID，通过 clashConfig.getAll 查询；不是配置 key。"
+                      }
+                    },
+                    "required": [
+                      "baseYaml",
+                      "configId"
+                    ],
+                    "additionalProperties": false,
+                    "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "description": "SuperJSON 包装；业务值放在 json 字段。"
+              }
+            }
+          },
+          "description": "JSON 请求体；将业务参数放在 json 字段内。"
+        },
+        "summary": "将配置合并到 Clash YAML",
+        "description": "读取 configId 的配置，将全局配置合并到 baseYaml 并前置 rules，返回合并后的 YAML 字符串。不保存结果；配置不存在时返回错误。属于 POST 操作，需要读写 Token。\n需要读写 Token。"
+      }
+    },
+    "/export.exportAll": {
+      "get": {
+        "operationId": "export.exportAll",
+        "tags": [
+          "export"
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功；业务结果在 result.data.json，结构如下。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "json": {
+                              "$ref": "#/components/schemas/ExportData",
+                              "description": "要局部修改的字段；省略字段保持原值，只有允许 null 的字段才能用 null 清空。"
+                            }
+                          },
+                          "required": [
+                            "json"
+                          ],
+                          "description": "SuperJSON 包装；业务值放在 json 字段。"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "description": "tRPC 成功响应，业务结果位于 data.json。"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "summary": "导出全部业务数据",
+        "description": "返回 users、nodes、nodeClients、userClientOptions、subconverters、clashConfigs 六组数组。包含订阅密钥、节点链接等敏感数据；不含管理员密码、API Token 或 Token 哈希。\n只读或读写 Token 均可调用。"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Subconverter": {
+        "type": "object",
+        "properties": {
+          "options": {
+            "type": "string",
+            "description": "订阅转换器 URL 查询参数字符串，不带问号，例如 emoji=true&udp=true。"
+          },
+          "id": {
+            "type": "string",
+            "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+          },
+          "url": {
+            "type": "string",
+            "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "是否标记为默认订阅转换器；创建省略时为 false。"
+          }
+        },
+        "required": [
+          "options",
+          "id",
+          "createdAt",
+          "updatedAt",
+          "url",
+          "isDefault"
+        ],
+        "additionalProperties": false
+      },
+      "ExportData": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "便于管理员识别的显示名称。"
+                },
+                "subscriptionKey": {
+                  "type": "string",
+                  "description": "用户唯一订阅密钥，用于访问订阅链接；创建时提供随机且唯一的值。属于敏感凭据。"
+                },
+                "subconverterId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "订阅转换器 ID；null 表示未指定。通过 subconverter.getAll 查询可用值。"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "subscriptionKey",
+                "subconverterId",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            },
+            "description": "用户记录或客户端关联的用户列表，具体字段见元素 schema。"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "便于管理员识别的显示名称。"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "节点类型：custom、3x-ui 或 external-subscription；创建默认 custom。"
+                },
+                "host": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "节点主机地址；可以为 null。"
+                },
+                "accessUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "节点管理或访问地址；可以为 null，可能包含敏感信息。"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "createdAt",
+                "updatedAt",
+                "type",
+                "host",
+                "accessUrl"
+              ],
+              "additionalProperties": false
+            },
+            "description": "节点记录数组。"
+          },
+          "nodeClients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                },
+                "url": {
+                  "type": "string",
+                  "description": "资源 URL：客户端为代理分享链接/订阅地址，转换器为服务根地址。可能包含凭据。"
+                },
+                "nodeId": {
+                  "type": "string",
+                  "description": "所属节点 ID，通过 node.getAll 查询。"
+                }
+              },
+              "required": [
+                "id",
+                "createdAt",
+                "updatedAt",
+                "url",
+                "nodeId"
+              ],
+              "additionalProperties": false
+            },
+            "description": "节点客户端记录数组。"
+          },
+          "userClientOptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "createdAt": {
+                  "type": "string",
+                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                },
+                "userId": {
+                  "type": "string",
+                  "description": "用户 ID，通过 user.getAll 查询。"
+                },
+                "nodeClientId": {
+                  "type": "string",
+                  "description": "节点客户端 ID，通过 nodeClient.getAll 查询。"
+                },
+                "enable": {
+                  "type": "boolean",
+                  "description": "该用户是否启用此客户端；新关联默认 true。"
+                },
+                "order": {
+                  "type": "number",
+                  "description": "该用户订阅中的客户端排列顺序，数值越小越靠前。"
+                }
+              },
+              "required": [
+                "createdAt",
+                "updatedAt",
+                "userId",
+                "nodeClientId",
+                "enable",
+                "order"
+              ],
+              "additionalProperties": false
+            },
+            "description": "用户与节点客户端的关联记录数组。"
+          },
+          "subconverters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Subconverter"
+            },
+            "description": "订阅转换器记录数组。"
+          },
+          "clashConfigs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "记录 ID；先通过对应查询接口获取。创建时由服务器生成，忽略传入值。"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "便于管理员识别的显示名称。"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "description": "创建时间，ISO 8601 字符串，由服务器生成。"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "description": "最近修改时间，ISO 8601 字符串，由服务器生成。"
+                },
+                "key": {
+                  "type": "string",
+                  "description": "Clash 配置的唯一标识，用于订阅 URL 选择配置；不同于用户 subscriptionKey。"
+                },
+                "globalConfig": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Clash 全局配置的 YAML 映射字符串；null 可清空配置。"
+                },
+                "rules": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Clash 规则的 YAML 列表字符串；合并时添加到原规则之前，null 可清空。"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "createdAt",
+                "updatedAt",
+                "key",
+                "globalConfig",
+                "rules"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Clash 配置记录数组。"
+          }
+        },
+        "required": [
+          "users",
+          "nodes",
+          "nodeClients",
+          "userClientOptions",
+          "subconverters",
+          "clashConfigs"
+        ],
+        "additionalProperties": false
+      },
+      "typeToFlattenedError": {
+        "type": "object",
+        "properties": {
+          "formErrors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "作用于整个输入的校验错误。"
+          },
+          "fieldErrors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "按字段名分组的校验错误。"
+          }
+        },
+        "required": [
+          "formErrors",
+          "fieldErrors"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "请求失败；error.json.message 为原因，error.json.data.code 为 tRPC 错误码。",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "json": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "zodError": {
+                              "oneOf": [
+                                {
+                                  "$ref": "#/components/schemas/typeToFlattenedError"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "参数校验详情；非参数校验错误时为 null。"
+                            },
+                            "code": {
+                              "type": "string",
+                              "enum": [
+                                "PARSE_ERROR",
+                                "BAD_REQUEST",
+                                "INTERNAL_SERVER_ERROR",
+                                "NOT_IMPLEMENTED",
+                                "BAD_GATEWAY",
+                                "SERVICE_UNAVAILABLE",
+                                "GATEWAY_TIMEOUT",
+                                "UNAUTHORIZED",
+                                "PAYMENT_REQUIRED",
+                                "FORBIDDEN",
+                                "NOT_FOUND",
+                                "METHOD_NOT_SUPPORTED",
+                                "TIMEOUT",
+                                "CONFLICT",
+                                "PRECONDITION_FAILED",
+                                "PAYLOAD_TOO_LARGE",
+                                "UNSUPPORTED_MEDIA_TYPE",
+                                "UNPROCESSABLE_CONTENT",
+                                "PRECONDITION_REQUIRED",
+                                "TOO_MANY_REQUESTS",
+                                "CLIENT_CLOSED_REQUEST"
+                              ],
+                              "description": "错误代码：外层为 JSON-RPC 数值，data.code 为 tRPC 字符串。"
+                            },
+                            "httpStatus": {
+                              "type": "number",
+                              "description": "对应的 HTTP 状态码。"
+                            },
+                            "path": {
+                              "type": "string",
+                              "description": "发生错误的 procedure 名称。"
+                            },
+                            "stack": {
+                              "type": "string",
+                              "description": "开发环境的调试堆栈；生产环境不应依赖此字段。"
+                            }
+                          },
+                          "required": [
+                            "zodError",
+                            "code",
+                            "httpStatus"
+                          ],
+                          "additionalProperties": false,
+                          "description": "tRPC 错误详情，包括错误码、HTTP 状态和参数校验结果。"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "错误原因。"
+                        },
+                        "code": {
+                          "type": "number",
+                          "enum": [
+                            -32700,
+                            -32600,
+                            -32603,
+                            -32001,
+                            -32002,
+                            -32003,
+                            -32004,
+                            -32005,
+                            -32008,
+                            -32009,
+                            -32012,
+                            -32013,
+                            -32015,
+                            -32022,
+                            -32028,
+                            -32029,
+                            -32099
+                          ],
+                          "description": "错误代码：外层为 JSON-RPC 数值，data.code 为 tRPC 字符串。"
+                        }
+                      },
+                      "required": [
+                        "data",
+                        "message",
+                        "code"
+                      ],
+                      "additionalProperties": false,
+                      "description": "SuperJSON 包装内的业务值，按此 schema 读取或填写。"
+                    }
+                  },
+                  "required": [
+                    "json"
+                  ],
+                  "description": "SuperJSON 包装；业务值放在 json 字段。"
+                }
+              },
+              "required": [
+                "error"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "在 AI 与 API 页面创建的 sb_ 开头 API Token。"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}

@@ -54,6 +54,7 @@ const navItems: NavItem[] = [
     href: "/clash-configs",
     icon: FileJson,
   },
+  { title: "AI 与 API", href: "/ai-api", icon: Cog },
   {
     title: "导入导出",
     href: "/export",

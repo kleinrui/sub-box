@@ -10,7 +10,9 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
+import { apiOperations } from "@/server/api/api-documentation";
 import { db } from "@/server/db";
+import { apiTokenService } from "@/server/services/api-token-service";
 import { getUser } from "@/server/services/authentication-service";
 
 /**
@@ -21,10 +23,15 @@ import { getUser } from "@/server/services/authentication-service";
  * These allow you to access things when processing a request, like the database, the session, etc.
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-  const user = await getUser();
+  const database = await db();
+  const authorization = opts.headers.get("authorization");
+  // 明确传入的 Token 优先；无效凭据不能降级为浏览器会话。
+  const apiToken = authorization !== null ? await apiTokenService.authenticate(database, authorization) : null;
+  const user = apiToken ? { username: "api-token" } : await getUser();
 
   return {
-    db: await db(),
+    db: database,
+    apiToken,
     user,
     ...opts,
   };
@@ -77,7 +84,15 @@ export const createTRPCRouter = t.router;
  * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
  * network latency that would occur in production but not in local development.
  */
-const timingMiddleware = t.middleware(async ({ next, path }) => {
+const timingMiddleware = t.middleware(async ({ next, path, type, ctx }) => {
+  if (ctx.apiToken) {
+    if (!Object.hasOwn(apiOperations, path)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "此操作仅允许网页登录后使用" });
+    }
+    if (type !== "query" && ctx.apiToken.permission !== "write") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "只读 Token 不能执行 POST 写入或生成操作" });
+    }
+  }
   const start = Date.now();
 
   const result = await next();
@@ -115,4 +130,10 @@ export const protectedProcedure = t.procedure.use(timingMiddleware).use(({ ctx, 
       user: ctx.user,
     },
   });
+});
+
+/** Token 管理必须使用网页登录，API Token 不可创建或管理其他凭据。 */
+export const sessionProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.apiToken) throw new TRPCError({ code: "FORBIDDEN", message: "请使用网页登录管理 API Token" });
+  return next();
 });
