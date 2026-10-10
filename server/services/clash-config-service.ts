@@ -4,13 +4,14 @@ import crypto from "crypto";
 import { eq } from "drizzle-orm";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
+import { parseClashRulesYaml } from "@/lib/clash-rules";
 import { type ClashConfig } from "@/types";
 import { db, type Database } from "../db";
 import { clashConfigs } from "../db/schema";
 
 // Define type for Clash configuration object
 type ClashYamlConfig = {
-  rules?: string[];
+  rules?: unknown[];
   [key: string]: unknown;
 };
 
@@ -101,17 +102,16 @@ class ClashConfigService {
     }
 
     // Step 2: Prepend rules if exists
-    if (config.rules) {
-      const newRules = config.rules
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
+    if (config.rules?.trim()) {
+      const newRules = parseClashRulesYaml(config.rules);
 
-      if (!finalConfig.rules) {
-        finalConfig.rules = [];
+      if (newRules.length > 0) {
+        if (!finalConfig.rules) {
+          finalConfig.rules = [];
+        }
+
+        finalConfig.rules = [...newRules, ...finalConfig.rules];
       }
-
-      finalConfig.rules = [...newRules, ...finalConfig.rules];
     }
 
     return stringifyYaml(finalConfig);

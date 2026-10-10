@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { isClashRulesYamlList } from "@/lib/clash-rules";
 import { type ClashConfig } from "@/types";
 import { api } from "@/utils/api";
 
@@ -37,14 +38,7 @@ const formSchema = z.object({
     .string()
     .nullable()
     .transform((val) => val?.trim() ?? null)
-    .refine((val) => {
-      if (!val) return true;
-      const lines = val?.split("\n").filter((line) => line.trim()) ?? [];
-      return lines.every((line) => {
-        const parts = line.split(",");
-        return parts.length === 3 && parts.every((part) => part.trim().length > 0);
-      });
-    }, "规则格式错误，每行必须是 TYPE,VALUE,PROXY 格式"),
+    .refine((val) => isClashRulesYamlList(val), "规则必须是 YAML list"),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -148,7 +142,13 @@ export function ClashConfigForm({ config, onSuccess }: ClashConfigFormProps) {
             <FormItem>
               <FormLabel>规则</FormLabel>
               <FormControl>
-                <Textarea {...field} value={value ?? ""} placeholder="规则格式: TYPE,VALUE,PROXY" className="font-mono" rows={10} />
+                <Textarea
+                  {...field}
+                  value={value ?? ""}
+                  placeholder={"# YAML list\n- DOMAIN-SUFFIX,example.com,PROXY\n- GEOIP,CN,DIRECT"}
+                  className="font-mono"
+                  rows={10}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
