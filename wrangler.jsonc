@@ -1,21 +1,16 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "sub-box",
-  "main": ".open-next/worker.js",
+  "main": "vinext/server/fetch-handler",
   "compatibility_date": "2026-10-06",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "minify": true,
   "assets": {
-    "directory": ".open-next/assets",
+    "directory": "dist/client",
+    "not_found_handling": "none",
     "binding": "ASSETS"
   },
-  "services": [
-    {
-      "binding": "WORKER_SELF_REFERENCE",
-      "service": "sub-box"
-    }
-  ],
-  // 同一账号要跑多份实例时，同时改 name 和上面的 service
+  // 同一账号要跑多份实例时，同时改 name
   "vars": {
     "ADMIN_USERNAME": "admin",
     "SESSION_TAG": "0",

@@ -11,6 +11,8 @@
       "**",
       "!**/.next",
       "!**/.open-next",
+      "!**/.vinext",
+      "!**/dist",
       "!**/.wrangler",
       "!**/node_modules",
       "!**/migrations/meta",

@@ -9,8 +9,8 @@ alwaysApply: true
 
 ## 主要技术栈
 
-- Next.js 15 与 Node.js 22
-- OpenNext 用于部署到 Cloudflare Workers
+- Next.js 15 API 与 Node.js 22
+- vinext / Vite 用于部署到 Cloudflare Workers
 - UI 组件使用 shadcn 和 Tailwind CSS
 - 数据库管理使用 Drizzle
 - 包管理使用 bun 而非 npm

@@ -52,7 +52,7 @@ cp .dev.vars.example .dev.vars
 
 ```bash
 bun install
-bun run build:worker
+bun run build
 ```
 
 首次部署需要把运行时密钥一起上传（不要把整个 `.dev.vars` 当作 secrets 文件，里面可能有 Cloudflare API token）：
@@ -63,7 +63,8 @@ ADMIN_PASSWORD=你的管理员密码
 JWT_SECRET=$(openssl rand -base64 32)
 EOF
 
-bunx wrangler deploy --secrets-file secrets.env
+bun run deploy
+bunx wrangler secret bulk secrets.env
 bun d1:migrate:remote
 rm secrets.env
 ```

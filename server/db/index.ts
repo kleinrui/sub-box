@@ -1,4 +1,4 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { env as workersEnv } from "cloudflare:workers";
 import { type DrizzleD1Database, drizzle } from "drizzle-orm/d1";
 
 import { env } from "@/env";
@@ -17,10 +17,7 @@ const globalForDb = globalThis as unknown as {
 export let client: D1Database | undefined;
 
 export const db = async () => {
-  /**
-   * Don't call getRequestContext() at the top level
-   */
-  client = globalForDb.client ?? (await getCloudflareContext({ async: true })).env.DB;
+  client = globalForDb.client ?? workersEnv.DB;
   if (env.NODE_ENV !== "production") globalForDb.client = client;
   return drizzle(client, { schema });
 };

@@ -4,8 +4,8 @@
 
 ## 技术栈
 
-- Next.js 15（App Router）+ React 19 + Node.js 22
-- OpenNext 部署到 Cloudflare Workers
+- Next.js 15 API（App Router）+ vinext / Vite + React 19 + Node.js 22
+- vinext 部署到 Cloudflare Workers
 - tRPC + TanStack Query / Table
 - Drizzle ORM + Cloudflare D1
 - shadcn/ui + Tailwind CSS 3
@@ -22,6 +22,7 @@ bun run lint:fix
 bun run format
 bun run tc
 bun run build
+bun run deploy
 ```
 
 数据更新后务必刷新页面：TRPC 写操作后使用 `router.refresh()`。

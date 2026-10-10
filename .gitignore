@@ -57,3 +57,5 @@ secrets.env
 wrangler.toml
 wrangler.json
 .wrangler
+/dist/
+.vinext/
