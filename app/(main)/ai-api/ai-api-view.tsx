@@ -23,6 +23,7 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Token | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<Token | null>(null);
   const form = useForm<CreateApiTokenInput>({
     resolver: zodResolver(createApiTokenSchema),
@@ -42,6 +43,14 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
       setRevokeTarget(null);
       router.refresh();
       toast.success("Token 已撤销");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const remove = api.apiToken.delete.useMutation({
+    onSuccess: () => {
+      setDeleteTarget(null);
+      router.refresh();
+      toast.success("Token 已删除");
     },
     onError: (error) => toast.error(error.message),
   });
@@ -72,14 +81,16 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
           <CardDescription>OpenAPI 文档公开可读，数据操作需要 API Token。无需配置 MCP server 或模型 API Key。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm">将接入说明交给 agent，并在运行 agent 的环境中设置 SUB_BOX_API_TOKEN。不要将 Token 粘贴到聊天中。</p>
+          <p className="text-sm">将接入说明交给 agent。它会读取环境变量 SUB_BOX_API_TOKEN，或向你询问 Token。</p>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => copy(`请阅读 ${window.location.origin}/api/openapi.json，按文档操作 Sub Box；使用环境变量 SUB_BOX_API_TOKEN 作为 Bearer Token。`)}>
+            <Button
+              onClick={() => copy(`请阅读 ${window.location.origin}/llms.txt 来了解如何操作 Sub Box。使用环境变量 SUB_BOX_API_TOKEN 作为 Bearer Token，或向用户询问 token。`)}
+            >
               复制接入说明
             </Button>
             <Button asChild variant="outline">
-              <a href="/api/openapi.json" target="_blank" rel="noreferrer">
-                查看 OpenAPI 文档
+              <a href="/api-reference" target="_blank" rel="noopener noreferrer">
+                API 文档与测试 ↗
               </a>
             </Button>
           </div>
@@ -127,9 +138,14 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
                     <TableCell>{date(token.lastUsedAt)}</TableCell>
                     <TableCell>{token.revokedAt ? "已撤销" : expired ? "已过期" : "有效"}</TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm" disabled={!!token.revokedAt || expired} onClick={() => setRevokeTarget(token)}>
-                        撤销
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" disabled={!!token.revokedAt || expired} onClick={() => setRevokeTarget(token)}>
+                          撤销
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(token)}>
+                          删除
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -251,6 +267,28 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
             }}
           >
             {revoke.isPending ? "正在撤销…" : "确认撤销"}
+          </Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(value) => {
+          if (!value && !remove.isPending) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除 Token</DialogTitle>
+            <DialogDescription>删除「{deleteTarget?.name}」会永久移除记录，并使该 Token 立即失效。此操作不可恢复。</DialogDescription>
+          </DialogHeader>
+          <Button
+            variant="destructive"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (deleteTarget) remove.mutate({ id: deleteTarget.id });
+            }}
+          >
+            {remove.isPending ? "正在删除…" : "确认删除"}
           </Button>
         </DialogContent>
       </Dialog>

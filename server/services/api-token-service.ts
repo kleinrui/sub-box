@@ -41,6 +41,10 @@ export const apiTokenService = {
       .where(and(eq(apiTokens.id, id), isNull(apiTokens.revokedAt)));
     return { success: true };
   },
+  async delete(database: Database, id: string) {
+    await database.delete(apiTokens).where(eq(apiTokens.id, id));
+    return { success: true };
+  },
   async authenticate(database: Database, authorization: string) {
     const match = /^Bearer (sb_[a-f0-9]{64})$/i.exec(authorization);
     if (!match?.[1]) throw new TRPCError({ code: "UNAUTHORIZED", message: "无效的 API Token" });

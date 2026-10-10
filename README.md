@@ -97,9 +97,9 @@ bun dev
 
 ## AI 与 API
 
-在后台「AI 与 API」页面创建 Token，选择只读或读写权限及有效期。完整 Token 只显示一次，数据库仅存储 SHA-256 哈希；支持查看最近使用时间并撤销。只读权限允许 GET，所有 POST（包括生成订阅、验证转换器、合并配置）需要读写权限。
+在后台「AI 与 API」页面创建 Token，选择只读或读写权限及有效期。完整 Token 只显示一次，数据库仅存储 SHA-256 哈希；支持查看最近使用时间、撤销和删除；删除会永久移除记录并立即使 Token 失效。只读权限允许 GET，所有 POST（包括生成订阅、验证转换器、合并配置）需要读写权限。
 
-点击「复制接入说明」，将短说明交给 agent；在 agent 运行环境设置 `SUB_BOX_API_TOKEN`。公开的 `/api/openapi.json` 文档包含认证方式、请求和响应 schema、操作用途和参数说明，不包含实际数据。业务请求使用 `Authorization: Bearer <token>`。Token 不能登录、管理其他 Token 或执行整库导入；这些操作仍仅供网页登录使用。
+点击「复制接入说明」，将指向 `/llms.txt` 的短说明交给 agent；在 agent 运行环境设置 `SUB_BOX_API_TOKEN`，未设置时 agent 可向用户询问 Token。公开的 `/api/openapi.json` 文档包含认证方式、请求和响应 schema、操作用途和参数说明，不包含实际数据。业务请求使用 `Authorization: Bearer <token>`。Token 不能登录、管理其他 Token 或执行整库导入；这些操作仍仅供网页登录使用。
 
 API 复用 `/api/trpc`，请求和响应使用 SuperJSON 包装：GET 的 `input` 是 URL 编码的 `{"json":参数}`；POST 请求体为 `{"json":参数}`；成功结果在 `result.data.json`。不要将它当作普通 REST API。最简单的无参数查询：
 
@@ -127,3 +127,21 @@ bun test tests/api-token-service.test.ts
 # 启动本地 bun dev 后运行；测试创建并撤销测试 Token，创建的节点会自动清理。
 SUB_BOX_TEST_URL=http://localhost:3000 bun with-env bun test tests/api-token.integration.test.ts
 ```
+
+### Scalar 文档与测试
+
+「AI 与 API」页面的「API 文档与测试」在新标签页打开独立的 `/api-reference` 页面，要求管理员登录。Scalar 在本站打包，不使用外部 CDN 或请求代理。在 Authentication 中填写 API Token 后可发送请求；测试请求不携带网页登录 Cookie，因而能准确验证 Token 的权限。Token 不持久保存，写操作会修改真实业务数据。
+
+`bun run openapi:generate` 同时使用 `@scalar/openapi-to-markdown` 生成公开的文档：
+
+- `/llms.txt`：简短接入说明和模块索引，作为 agent 的首选入口。
+- `/api/docs/introduction.md`：认证和 tRPC / SuperJSON 请求格式。
+- `/api/docs/user.md` 等：按 7 个业务模块拆分的说明、参数和返回结构。
+- `/llms-full.txt`：完整 Markdown，仅在需要全部操作时读取。
+- `/api/openapi.json`：供 Scalar 和其他工具读取的原始 OpenAPI 契约。
+
+这些文件由同一份接口契约生成，不要手动修改。Scalar 只在独立文档页加载，不影响 Token 管理页的首屏依赖。
+
+公开的文本和 Markdown 文档明确使用 UTF-8：Cloudflare 静态资源通过 `public/_headers` 设置响应头，本地 Vite 开发服务器提供相同编码。
+
+生成的 `public/openapi.json`、`public/llms.txt`、`public/llms-full.txt` 和 `public/api/docs/` 不提交 Git。开发启动、构建、预览、类型检查和部署命令会先生成文档，全新检出后无需手动补文件；只提交生成脚本和接口说明源文件。

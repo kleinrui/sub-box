@@ -6,5 +6,6 @@ import { apiTokenService } from "@/server/services/api-token-service";
 export const apiTokenRouter = createTRPCRouter({
   list: sessionProcedure.query(({ ctx }) => apiTokenService.list(ctx.db)),
   create: sessionProcedure.input(createApiTokenSchema).mutation(({ ctx, input }) => apiTokenService.create(ctx.db, input)),
+  delete: sessionProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => apiTokenService.delete(ctx.db, input.id)),
   revoke: sessionProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => apiTokenService.revoke(ctx.db, input.id)),
 });

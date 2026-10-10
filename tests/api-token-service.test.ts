@@ -36,6 +36,14 @@ test("Token 哈希存储、过期与撤销在 SQLite 上生效", async () => {
     await sqlite.update(schema.apiTokens).set({ expiresAt: "2999-01-01T00:00:00.000Z" }).where(eq(schema.apiTokens.id, record.id));
     await apiTokenService.revoke(database, record.id);
     await assert.rejects(apiTokenService.authenticate(database, `Bearer ${token}`), unauthorized);
+    await apiTokenService.delete(database, record.id);
+    assert.equal((await apiTokenService.list(database)).length, 0);
+    const active = await apiTokenService.create(database, input);
+    const [activeRecord] = await apiTokenService.list(database);
+    assert.ok(activeRecord);
+    await apiTokenService.delete(database, activeRecord.id);
+    await assert.rejects(apiTokenService.authenticate(database, `Bearer ${active.token}`), unauthorized);
+    assert.equal((await apiTokenService.list(database)).length, 0);
     assert.equal(createApiTokenSchema.safeParse({ name: " ", permission: "admin", expiresInDays: "0" }).success, false);
   } finally {
     client.close();

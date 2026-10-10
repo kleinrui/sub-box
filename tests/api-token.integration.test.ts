@@ -74,6 +74,7 @@ test("API Token 权限、撤销和公开文档（仅本地运行）", { skip: !b
     for (const headers of [read, write, { ...write, cookie }]) {
       assert.equal((await call<Tokens>("apiToken.list", "GET", undefined, headers)).status, 403);
       assert.equal((await call("apiToken.create", "POST", { name: stamp, permission: "write", expiresInDays: "7" }, headers)).status, 403);
+      assert.equal((await call("apiToken.delete", "POST", { id: tokenIds[0] }, headers)).status, 403);
       assert.equal((await call("auth.getUser", "GET", undefined, headers)).status, 403);
     }
     assert.equal((await call("export.importAll", "POST", {}, write)).status, 403, "未公开接口不接受 Token");
@@ -98,7 +99,7 @@ test("API Token 权限、撤销和公开文档（仅本地运行）", { skip: !b
     if (nodeId) await call("node.delete", "POST", nodeId, { cookie });
     const list = await call<Tokens>("apiToken.list", "GET", undefined, { cookie });
     for (const item of list.data ?? []) {
-      if (item.name.startsWith(stamp) && !item.revokedAt) await call("apiToken.revoke", "POST", { id: item.id }, { cookie });
+      if (item.name.startsWith(stamp)) await call("apiToken.delete", "POST", { id: item.id }, { cookie });
     }
   }
 });

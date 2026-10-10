@@ -59,3 +59,9 @@ wrangler.json
 .wrangler
 /dist/
 .vinext/
+
+# 自动生成的 API 文档（由 openapi:generate 生成）
+/public/openapi.json
+/public/llms.txt
+/public/llms-full.txt
+/public/api/docs/
