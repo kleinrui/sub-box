@@ -15,6 +15,18 @@ type ClashYamlConfig = {
   [key: string]: unknown;
 };
 
+function parseConfig(value: string, label: string): ClashYamlConfig {
+  const parsed: unknown = parseYaml(value);
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`${label}必须是 YAML 对象`);
+  }
+  const config = parsed as ClashYamlConfig;
+  if (config.rules !== undefined && !Array.isArray(config.rules)) {
+    throw new Error(`${label}中的 rules 必须是 YAML list`);
+  }
+  return config;
+}
+
 class ClashConfigService {
   private dbPromise: Promise<Database>;
 
@@ -34,6 +46,12 @@ class ClashConfigService {
   async get(id: string): Promise<ClashConfig | null> {
     const db = await this.getDb();
     const results = await db.select().from(clashConfigs).where(eq(clashConfigs.id, id)).limit(1);
+    return results[0] || null;
+  }
+
+  async getByKey(key: string): Promise<ClashConfig | null> {
+    const db = await this.getDb();
+    const results = await db.select().from(clashConfigs).where(eq(clashConfigs.key, key)).limit(1);
     return results[0] || null;
   }
 
@@ -77,11 +95,11 @@ class ClashConfigService {
   }
 
   async mergeConfig(baseYaml: string, config: ClashConfig): Promise<string> {
-    let finalConfig: ClashYamlConfig = parseYaml(baseYaml);
+    let finalConfig = parseConfig(baseYaml, "订阅内容");
 
     // Step 1: Merge global config if exists
-    if (config.globalConfig) {
-      const globalConfig: ClashYamlConfig = parseYaml(config.globalConfig);
+    if (config.globalConfig?.trim()) {
+      const globalConfig = parseConfig(config.globalConfig, "全局配置");
 
       // Create a new object with the order from globalConfig first
       const orderedConfig: ClashYamlConfig = {};

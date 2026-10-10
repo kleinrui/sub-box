@@ -26,7 +26,8 @@ export const subscriptionRouter = createTRPCRouter({
       z.object({
         key: z.string(),
         format: z.string().optional().default("clash"),
-        configId: z.string().optional(),
+        configId: z.string().min(1).optional(),
+        configKey: z.string().min(1).optional(),
       })
     )
     .query(async ({ input }) => {
@@ -39,6 +40,19 @@ export const subscriptionRouter = createTRPCRouter({
         });
       }
 
+      // 先确认显式指定的配置存在，不能找不到配置仍返回未合并的订阅。
+      let targetConfig = null;
+      if (input.configKey !== undefined) {
+        targetConfig = await clashConfigService.getByKey(input.configKey);
+        // 兼容已经使用数据库 ID 的订阅 URL；优先按文档约定的 Key 查询。
+        targetConfig ??= await clashConfigService.get(input.configKey);
+      } else if (input.configId !== undefined) {
+        targetConfig = await clashConfigService.get(input.configId);
+      }
+      if ((input.configKey !== undefined || input.configId !== undefined) && !targetConfig) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Clash config not found" });
+      }
+
       // 2. 生成订阅内容
       const originalYaml = await subscriptionService.generateSubscription({
         userId: user.id,
@@ -46,14 +60,6 @@ export const subscriptionRouter = createTRPCRouter({
       });
 
       // 3. 检查是否需要合并配置
-      let finalYaml = originalYaml;
-      if (input.configId) {
-        const targetConfig = await clashConfigService.get(input.configId);
-        if (targetConfig) {
-          finalYaml = await clashConfigService.mergeConfig(originalYaml, targetConfig);
-        }
-      }
-
-      return finalYaml;
+      return targetConfig ? await clashConfigService.mergeConfig(originalYaml, targetConfig) : originalYaml;
     }),
 });

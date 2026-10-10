@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { NextResponse } from "next/server";
 import { createCaller } from "@/server/api/root";
 import { createTRPCContext } from "@/server/api/trpc";
@@ -16,7 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ key:
     // 使用TRPC调用获取订阅内容
     const yaml = await caller.subscription.getSubscriptionByKey({
       key,
-      configId: configKey || undefined,
+      configKey: configKey ?? undefined,
     });
 
     // 返回最终的YAML
@@ -32,7 +33,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ key:
         error: error instanceof Error ? error.message : "Unknown error occurred",
       }),
       {
-        status: error instanceof Error && error.message.includes("not found") ? 404 : 500,
+        status: error instanceof TRPCError ? (error.code === "NOT_FOUND" ? 404 : error.code === "BAD_REQUEST" ? 400 : 500) : 500,
         headers: {
           "Content-Type": "application/json; charset=utf-8",
         },
