@@ -20,6 +20,7 @@ import type { ClashConfig } from "@/types";
 import { api } from "@/utils/api";
 import { ClashConfigForm } from "./clash-config-form";
 import { createColumns } from "./columns";
+import { CreateClashConfigDialog } from "./create-clash-config-dialog";
 
 interface ClashConfigTableProps {
   configs: ClashConfig[];
@@ -52,14 +53,29 @@ export function ClashConfigTable({ configs }: ClashConfigTableProps) {
   const columns = createColumns({
     onEdit: setEditingItem,
     onDelete: setDeletingItem,
+    isPending: deleteClashConfigMutation.isPending,
   });
 
   return (
     <>
-      <DataTable columns={columns} data={configs} />
+      <DataTable
+        columns={columns}
+        data={configs}
+        enableColumnVisibility
+        enableGlobalSearch
+        enablePagination
+        searchPlaceholder="搜索配置名称或 Key"
+        getSearchText={(config) => `${config.name} ${config.key}`}
+        defaultColumnVisibility={{ id: false, createdAt: false }}
+        defaultSorting={[{ id: "updatedAt", desc: true }]}
+        storageKey="clash-configs-table"
+        emptyTitle="还没有 Clash 配置"
+        emptyDescription="添加配置后，可编辑全局设置和规则，用于订阅合并。"
+        emptyAction={<CreateClashConfigDialog />}
+      />
 
       <PopupSheet open={Boolean(editingItem)} onOpenChange={(open) => !open && setEditingItem(null)} title="编辑 Clash 配置">
-        <ClashConfigForm config={editingItem ?? undefined} onSuccess={() => setEditingItem(null)} />
+        {editingItem && <ClashConfigForm config={editingItem} onSuccess={() => setEditingItem(null)} />}
       </PopupSheet>
 
       <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && !deleteClashConfigMutation.isPending && setDeletingItem(null)}>

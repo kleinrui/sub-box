@@ -12,12 +12,12 @@ export function CreateClashConfigDialog() {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button size="sm" onClick={() => setOpen(true)}>
         <PlusCircle className="mr-2 h-4 w-4" />
         添加配置
       </Button>
 
-      <PopupSheet open={open} onOpenChange={setOpen} title="添加 Clash 配置">
+      <PopupSheet open={open} onOpenChange={setOpen} title="添加 Clash 配置" description="填写基本信息，再添加需要合并的全局配置和规则。">
         <ClashConfigForm onSuccess={() => setOpen(false)} />
       </PopupSheet>
     </>

@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { CollapseDisplay } from "@/components/collapse-display";
-import { PopupSheet } from "@/components/popup-sheet";
+import { FormActions } from "@/components/form-actions";
+import { PopupSheet, usePopupSheetFormState } from "@/components/popup-sheet";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,6 +43,39 @@ interface BatchImportNodeClientDialogProps {
   users: User[];
 }
 
+function BatchImportActions({
+  isDirty,
+  isPending,
+  step,
+  submitDisabled,
+  hasFailures,
+  onPrevious,
+}: {
+  isDirty: boolean;
+  isPending: boolean;
+  step: 1 | 2;
+  submitDisabled: boolean;
+  hasFailures: boolean;
+  onPrevious: () => void;
+}) {
+  const requestClose = usePopupSheetFormState({ isDirty, isPending });
+  return (
+    <FormActions
+      isPending={isPending}
+      onCancel={requestClose}
+      submitDisabled={submitDisabled}
+      submitLabel={step === 1 ? "预览导入" : hasFailures ? "重试失败项" : "确认导入"}
+      pendingLabel="导入中..."
+    >
+      {step === 2 && (
+        <Button type="button" variant="outline" onClick={onPrevious} disabled={isPending}>
+          上一步
+        </Button>
+      )}
+    </FormActions>
+  );
+}
+
 export function BatchImportNodeClientDialog({ userId, node, nodes, users }: BatchImportNodeClientDialogProps) {
   const router = useRouter();
   const utils = api.useUtils();
@@ -55,12 +89,26 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
     defaultValues: { nodeId: node?.id ?? "", urls: "", items: [] },
   });
   const nodeId = form.watch("nodeId");
+  const enteredUrls = form.watch("urls");
   const items = form.watch("items");
   const selectedNode = node ?? nodes.find((item) => item.id === nodeId);
   const clientsQuery = api.nodeClient.getNodeClientsWithUsers.useQuery(undefined, { enabled: open });
   const createClientMutation = api.nodeClient.create.useMutation();
   const setUserClientOptionMutation = api.nodeClient.setUserClientOption.useMutation();
   const dataReady = clientsQuery.data !== undefined && !clientsQuery.isError && !clientsQuery.isFetching;
+  const isPending = isImporting || form.formState.isSubmitting;
+  // 查询填入的预览默认值不算用户修改；只检查实际选择与填写的地址。
+  const isDirty = nodeId !== (node?.id ?? "") || enteredUrls.length > 0;
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (importing.current) return;
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setStep(1);
+      setResultMessage("");
+      form.reset({ nodeId: node?.id ?? "", urls: "", items: [] });
+    }
+  }
 
   async function handleNext() {
     if (importing.current || !dataReady || !(await form.trigger(["nodeId", "urls"]))) return;
@@ -69,11 +117,13 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
     const previousItems = form.getValues("items");
     const nextItems = buildNodeClientImportItems(urls, clientsQuery.data, nodeId, userId).map((item) => {
       const previous = previousItems.find((entry) => entry.url === item.url);
-      return previous ? { ...item, userId: previous.userId, enable: previous.enable, error: previous.error } : item;
+      return previous ? { ...item, clientId: item.clientId ?? previous.clientId, userId: previous.userId, enable: previous.enable, error: previous.error } : item;
     });
     form.setValue("items", nextItems);
     form.clearErrors("items");
-    setResultMessage(duplicateCount ? `已合并 ${duplicateCount} 条重复地址，将处理 ${urls.length} 个客户端。` : "");
+    setResultMessage((previous) =>
+      duplicateCount ? `已合并 ${duplicateCount} 条重复地址，将处理 ${urls.length} 个客户端。` : nextItems.some((item) => item.error) ? previous : ""
+    );
     setStep(2);
   }
 
@@ -119,18 +169,22 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Upload className="mr-2 h-4 w-4" />
+      <Button variant="outline" size="sm" onClick={() => handleOpenChange(true)}>
+        <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
         批量导入
       </Button>
-      <PopupSheet
-        open={open}
-        onOpenChange={(value) => !importing.current && setOpen(value)}
-        title="批量导入客户端"
-        description="按订阅地址匹配当前节点的客户端，并保存所选用户的启用状态。"
-      >
+      <PopupSheet open={open} onOpenChange={handleOpenChange} title="批量导入客户端" description="按订阅地址匹配当前节点的客户端，并保存所选用户的启用状态。">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleImport)} className="space-y-4">
+          <form
+            onSubmit={(event) => {
+              if (step === 1) {
+                event.preventDefault();
+                void handleNext();
+              } else void form.handleSubmit(handleImport)(event);
+            }}
+            className="flex min-h-full flex-col gap-4"
+          >
+            <p className="text-sm text-muted-foreground">{step === 1 ? "第 1 步：填写地址" : "第 2 步：确认用户关联与启用状态"}</p>
             {clientsQuery.isError ? (
               <div role="alert" className="space-y-2 rounded-md border border-destructive/50 p-3 text-sm">
                 <p>客户端关联加载失败：{clientsQuery.error.message}</p>
@@ -154,7 +208,7 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
               </p>
             )}
             {step === 1 ? (
-              <>
+              <div className="space-y-4 rounded-lg border p-4">
                 {node ? (
                   <p className="text-sm">所属节点：{node.name}</p>
                 ) : (
@@ -201,18 +255,13 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
                     <FormItem>
                       <FormLabel>订阅地址（每行一个）</FormLabel>
                       <FormControl>
-                        <Textarea {...field} rows={8} className="font-mono" placeholder={"vless://xxx\nvless://yyy"} disabled={isImporting} />
+                        <Textarea {...field} rows={8} className="min-w-0 font-mono" placeholder={"vless://xxx\nvless://yyy"} disabled={isImporting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <div className="flex justify-end">
-                  <Button type="button" onClick={handleNext} disabled={!dataReady || isImporting || users.length === 0 || nodes.length === 0}>
-                    预览导入
-                  </Button>
-                </div>
-              </>
+              </div>
             ) : (
               <>
                 <p className="text-sm">
@@ -222,7 +271,7 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
                   {items.map((item, index) => {
                     const existing = findNodeClientByUrl(clientsQuery.data ?? [], nodeId, item.url);
                     return (
-                      <div key={item.url} className="space-y-3 rounded-lg border p-3">
+                      <div key={item.url} className="min-w-0 space-y-3 rounded-lg border p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <CollapseDisplay url={item.url} />
                           <span className="text-sm text-muted-foreground">{existing ? "更新用户关联" : "新建客户端"}</span>
@@ -288,16 +337,16 @@ export function BatchImportNodeClientDialog({ userId, node, nodes, users }: Batc
                     );
                   })}
                 </div>
-                <div className="flex flex-wrap justify-between gap-2">
-                  <Button type="button" variant="outline" onClick={() => setStep(1)} disabled={isImporting}>
-                    上一步
-                  </Button>
-                  <Button type="submit" disabled={isImporting || !dataReady || users.length === 0 || items.length === 0}>
-                    {isImporting ? "导入中..." : items.some((item) => item.error) ? "重试失败项" : "确认导入"}
-                  </Button>
-                </div>
               </>
             )}
+            <BatchImportActions
+              isDirty={isDirty}
+              isPending={isPending}
+              step={step}
+              submitDisabled={!dataReady || users.length === 0 || (step === 1 ? nodes.length === 0 : items.length === 0)}
+              hasFailures={items.some((item) => item.error)}
+              onPrevious={() => setStep(1)}
+            />
           </form>
         </Form>
       </PopupSheet>

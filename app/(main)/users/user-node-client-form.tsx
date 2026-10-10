@@ -8,6 +8,8 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
+import { FormActions } from "@/components/form-actions";
+import { usePopupSheetFormState } from "@/components/popup-sheet";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { MultiSelect } from "@/components/ui/multi-select";
@@ -53,6 +55,8 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
   const savingRef = useRef(false);
   // 若创建后关联保存失败，重试时继续使用该客户端，避免重复创建。
   const createdClientIdRef = useRef<string | null>(null);
+  // 多步保存失败后，关联集合可能已生效或响应不确定，不能再按打开时快照跳过重试。
+  const associationWriteAttemptedRef = useRef(false);
   const isAssociating = mode === "associate";
   const createNodeClientMutation = api.nodeClient.create.useMutation();
   const updateNodeClientMutation = api.nodeClient.update.useMutation();
@@ -91,10 +95,10 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
 
   const replaceHostInUrl = () => {
     const currentUrl = form.getValues("url");
-    if (!currentUrl) return toast.error("URL不能为空");
-    if (!selectedNode?.host) return toast.error("节点主机不能为空");
-    if (!/@([^:]+):/.test(currentUrl)) return toast.error("URL格式不正确，未找到可替换的主机");
-    form.setValue("url", currentUrl.replace(/@([^:]+):/, `@${selectedNode.host}:`), { shouldDirty: true });
+    if (!currentUrl) return form.setError("url", { message: "URL不能为空" });
+    if (!selectedNode?.host) return form.setError("url", { message: "节点主机不能为空" });
+    if (!/@([^:]+):/.test(currentUrl)) return form.setError("url", { message: "URL格式不正确，未找到可替换的主机" });
+    form.setValue("url", currentUrl.replace(/@([^:]+):/, `@${selectedNode.host}:`), { shouldDirty: true, shouldValidate: true });
     toast.success("主机已替换");
   };
 
@@ -107,6 +111,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
     if (savingRef.current) return;
     savingRef.current = true;
     onPendingChange?.(true);
+    form.clearErrors("root");
     let clientSaved = false;
     try {
       if (isAssociating) {
@@ -128,8 +133,10 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
 
         const existingUserIds = item?.users.map((user) => user.userId) ?? [];
         const hasAssociationChanges = !item || values.userIds.length !== existingUserIds.length || values.userIds.some((id) => !existingUserIds.includes(id));
-        if (hasAssociationChanges) {
+        if (hasAssociationChanges || associationWriteAttemptedRef.current) {
           // 此 API 替换完整集合；保留的用户 enable/order 由服务端保持原值。
+          // 调用前记录尝试，失败后始终保存当前选择，即使用户改回了原来的集合。
+          associationWriteAttemptedRef.current = true;
           await setUserClientOptionsMutation.mutateAsync({ nodeClientId, userIds: values.userIds, defaultOptions: { enable: true } });
         }
         if (values.userIds.includes(userId)) {
@@ -138,12 +145,15 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
       }
 
       await refreshClients();
+      associationWriteAttemptedRef.current = false;
       toast.success(isAssociating ? "关联成功" : "保存成功");
       onSuccess?.();
     } catch (error) {
       if (clientSaved) await refreshClients();
       const message = error instanceof Error ? error.message : "请稍后重试";
-      toast.error(clientSaved ? `客户端已保存，但用户关联设置失败，请重试保存：${message}` : `${isAssociating ? "关联" : "保存"}失败：${message}`);
+      const errorMessage = clientSaved ? `客户端已保存，但用户关联设置失败，请重试保存：${message}` : `${isAssociating ? "关联" : "保存"}失败：${message}`;
+      form.setError("root", { type: "server", message: errorMessage });
+      toast.error(errorMessage);
     } finally {
       savingRef.current = false;
       onPendingChange?.(false);
@@ -157,6 +167,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
     setUserClientOptionsMutation.isPending ||
     setUserClientOptionMutation.isPending ||
     updateUserClientOptionMutation.isPending;
+  const requestClose = usePopupSheetFormState({ isDirty: form.formState.isDirty || associationWriteAttemptedRef.current, isPending });
 
   if (!isAssociating && nodes.length === 0) {
     return (
@@ -172,7 +183,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-full flex-col gap-4">
         <fieldset disabled={isPending} className="space-y-4">
           {isAssociating ? (
             <>
@@ -180,7 +191,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
               {clientsQuery.isLoading ? (
                 <p className="text-sm text-muted-foreground">正在加载客户端...</p>
               ) : clientsQuery.isError ? (
-                <div className="space-y-2">
+                <div role="alert" className="space-y-2">
                   <p className="text-sm text-destructive">客户端加载失败：{clientsQuery.error.message}</p>
                   <Button type="button" variant="outline" onClick={() => void clientsQuery.refetch()}>
                     重试
@@ -193,7 +204,7 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
                   control={form.control}
                   name="nodeClientId"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="min-w-0 rounded-lg border p-4">
                       <FormLabel>已有客户端</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || undefined} disabled={isPending}>
                         <FormControl>
@@ -223,60 +234,68 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
                   修改节点或 URL 会影响此客户端关联的所有用户{item.users.length > 1 ? `（共 ${item.users.length} 位）` : ""}；启用开关只影响当前用户。
                 </p>
               )}
-              <FormField
-                control={form.control}
-                name="userIds"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>关联用户</FormLabel>
-                    <MultiSelect value={field.value} onValueChange={field.onChange} options={users.map((user) => ({ value: user.id, label: user.name }))} placeholder="选择用户" />
-                    <p className="text-xs text-muted-foreground">取消选择会解除对应用户的关联；保留用户的启用状态和顺序不变。</p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="nodeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>节点</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || undefined} disabled={isPending}>
+              <div className="space-y-4 rounded-lg border p-4">
+                <FormField
+                  control={form.control}
+                  name="userIds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>关联用户</FormLabel>
+                      <MultiSelect
+                        value={field.value}
+                        onValueChange={(value) => !isPending && field.onChange(value)}
+                        options={users.map((user) => ({ value: user.id, label: user.name }))}
+                        placeholder="选择用户"
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">取消选择会解除对应用户的关联；保留用户的启用状态和顺序不变。</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="nodeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>节点</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || undefined} disabled={isPending}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="选择节点" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {nodes.map((node) => (
+                            <SelectItem key={node.id} value={node.id}>
+                              {node.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <FormLabel>URL</FormLabel>
+                        <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={replaceHostInUrl}>
+                          覆盖主机
+                        </Button>
+                      </div>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="选择节点" />
-                        </SelectTrigger>
+                        <Textarea {...field} rows={6} className="min-w-0 font-mono text-sm" />
                       </FormControl>
-                      <SelectContent>
-                        {nodes.map((node) => (
-                          <SelectItem key={node.id} value={node.id}>
-                            {node.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="url"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel>URL</FormLabel>
-                      <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={replaceHostInUrl}>
-                        覆盖主机
-                      </Button>
-                    </div>
-                    <FormControl>
-                      <Textarea {...field} rows={6} className="font-mono text-sm" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </>
           )}
           <FormField
@@ -295,10 +314,19 @@ export function UserNodeClientForm({ userId, nodes, users, item, mode = "create"
               </FormItem>
             )}
           />
-          <Button type="submit" disabled={isPending || (isAssociating && (clientsQuery.isLoading || clientsQuery.isError || availableClients.length === 0))}>
-            {isPending ? (isAssociating ? "关联中..." : "保存中...") : isAssociating ? "关联" : "保存"}
-          </Button>
         </fieldset>
+        {form.formState.errors.root?.message && (
+          <p role="alert" className="rounded-md border border-destructive/50 p-3 text-sm text-destructive">
+            {form.formState.errors.root.message}
+          </p>
+        )}
+        <FormActions
+          isPending={isPending}
+          onCancel={requestClose}
+          submitDisabled={isAssociating && (clientsQuery.isLoading || clientsQuery.isError || availableClients.length === 0)}
+          submitLabel={isAssociating ? "关联" : "保存"}
+          pendingLabel={isAssociating ? "关联中..." : "保存中..."}
+        />
       </form>
     </Form>
   );

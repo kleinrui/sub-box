@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -19,6 +19,7 @@ import {
 import type { Subconverter } from "@/types";
 import { api } from "@/utils/api";
 import { createColumns } from "./columns";
+import { CreateSubconverterDialog } from "./create-subconverter-dialog";
 import { SubconverterForm } from "./subconverter-form";
 
 interface SubconverterTableProps {
@@ -50,17 +51,30 @@ export function SubconverterTable({ subconverters }: SubconverterTableProps) {
     deleteSubconverterMutation.mutate(item.id);
   }
 
-  const columns = createColumns({
-    onEdit: setEditingItem,
-    onDelete: setDeletingItem,
-  });
+  const columns = useMemo(
+    () => createColumns({ onEdit: setEditingItem, onDelete: setDeletingItem, isPending: deleteSubconverterMutation.isPending }),
+    [deleteSubconverterMutation.isPending]
+  );
 
   return (
     <>
-      <DataTable columns={columns} data={subconverters} enableColumnVisibility enableGlobalSearch />
+      <DataTable
+        columns={columns}
+        data={subconverters}
+        enableColumnVisibility
+        enableGlobalSearch
+        enablePagination
+        searchPlaceholder="搜索转换器地址"
+        getSearchText={(subconverter) => subconverter.url}
+        defaultColumnVisibility={{ id: false, options: false, createdAt: false, updatedAt: false }}
+        storageKey="subconverters-table"
+        emptyTitle="还没有订阅转换器"
+        emptyDescription="添加转换服务地址并验证连接，再配置转换参数。"
+        emptyAction={<CreateSubconverterDialog />}
+      />
 
       <PopupSheet open={Boolean(editingItem)} onOpenChange={(open) => !open && setEditingItem(null)} title="编辑订阅转换器">
-        <SubconverterForm subconverter={editingItem ?? undefined} onSuccess={() => setEditingItem(null)} />
+        {editingItem && <SubconverterForm subconverter={editingItem} onSuccess={() => setEditingItem(null)} />}
       </PopupSheet>
 
       <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && !deleteSubconverterMutation.isPending && setDeletingItem(null)}>
@@ -68,7 +82,7 @@ export function SubconverterTable({ subconverters }: SubconverterTableProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>删除订阅转换器</AlertDialogTitle>
             <AlertDialogDescription className="break-words">
-              确定要删除订阅转换器「{deletingItem?.url}」吗？使用它的用户将改为使用默认转换器。此操作不可撤销。
+              确定要删除订阅转换器「{deletingItem?.url}」吗？指定使用它的用户将改为使用默认转换器；如未设置默认转换器，这些用户将无法生成订阅。此操作不可撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

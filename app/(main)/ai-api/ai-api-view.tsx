@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { PageHeading } from "@/components/page-heading";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -71,17 +73,29 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
   }
   return (
     <div className="min-w-0 max-w-full space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">AI 与 API</h1>
-        <p className="mt-2 text-sm text-muted-foreground">让外部 agent 使用 API 管理节点、用户和订阅。</p>
-      </div>
+      <PageHeading title="AI 与 API" description="让外部 agent 使用 API 管理节点、用户和订阅。" />
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>Agent 接入</CardTitle>
           <CardDescription>OpenAPI 文档公开可读，数据操作需要 API Token。无需配置 MCP server 或模型 API Key。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm">将接入说明交给 agent。它会读取环境变量 SUB_BOX_API_TOKEN，或向你询问 Token。</p>
+          <ol className="grid gap-3 text-sm sm:grid-cols-3">
+            <li className="rounded-lg bg-muted/50 p-3">
+              <span className="font-medium">1. 创建 Token</span>
+              <p className="mt-1 text-muted-foreground">按需选择只读或读写权限，并设置有效期。</p>
+            </li>
+            <li className="rounded-lg bg-muted/50 p-3">
+              <span className="font-medium">2. 配置 Token</span>
+              <p className="mt-1 text-muted-foreground">
+                在 agent 运行环境设置 <code className="break-all">SUB_BOX_API_TOKEN</code>，或按提示提供 Token。
+              </p>
+            </li>
+            <li className="rounded-lg bg-muted/50 p-3">
+              <span className="font-medium">3. 交给 agent</span>
+              <p className="mt-1 text-muted-foreground">复制下方接入说明，让 agent 阅读文档并执行操作。</p>
+            </li>
+          </ol>
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => copy(`请阅读 ${window.location.origin}/llms.txt 来了解如何操作 Sub Box。使用环境变量 SUB_BOX_API_TOKEN 作为 Bearer Token，或向用户询问 token。`)}
@@ -100,7 +114,7 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
         </CardContent>
       </Card>
       <Card className="min-w-0 overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle>API Token</CardTitle>
             <CardDescription className="mt-2">时间以北京时间（UTC+8）显示。</CardDescription>
@@ -132,11 +146,15 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
                       <div>{token.name}</div>
                       <code className="text-xs text-muted-foreground">{token.prefix}…</code>
                     </TableCell>
-                    <TableCell>{token.permission === "read" ? "只读" : "读写"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{token.permission === "read" ? "只读" : "读写"}</Badge>
+                    </TableCell>
                     <TableCell>{date(token.createdAt)}</TableCell>
                     <TableCell>{date(token.expiresAt)}</TableCell>
                     <TableCell>{date(token.lastUsedAt)}</TableCell>
-                    <TableCell>{token.revokedAt ? "已撤销" : expired ? "已过期" : "有效"}</TableCell>
+                    <TableCell>
+                      <Badge variant={token.revokedAt || expired ? "secondary" : "default"}>{token.revokedAt ? "已撤销" : expired ? "已过期" : "有效"}</Badge>
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" disabled={!!token.revokedAt || expired} onClick={() => setRevokeTarget(token)}>
@@ -161,6 +179,10 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
         }}
       >
         <DialogContent
+          className={`max-h-[90dvh] overflow-y-auto ${secret || create.isPending ? "[&>button]:hidden" : ""}`}
+          onEscapeKeyDown={(event) => {
+            if (secret || create.isPending) event.preventDefault();
+          }}
           onInteractOutside={(event) => {
             if (secret || create.isPending) event.preventDefault();
           }}
@@ -189,7 +211,7 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
                     <FormItem>
                       <FormLabel>名称</FormLabel>
                       <FormControl>
-                        <Input placeholder="例如：本机 Claude Code" {...field} />
+                        <Input placeholder="例如：本机 Claude Code" {...field} disabled={create.isPending} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -201,7 +223,7 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>权限</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={create.isPending}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
@@ -222,7 +244,7 @@ export function AiApiView({ tokens, now }: { tokens: Token[]; now: number }) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>有效期</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={create.isPending}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />

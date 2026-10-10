@@ -2,47 +2,22 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useId, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { parse as parseYaml } from "yaml";
-import * as z from "zod";
+import type * as z from "zod";
 
-import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { FormActions } from "@/components/form-actions";
+import { usePopupSheetFormState } from "@/components/popup-sheet";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { isClashRulesYamlList } from "@/lib/clash-rules";
+import { clashConfigFormSchema } from "@/lib/subscription-config-form";
 import type { ClashConfig } from "@/types";
 import { api } from "@/utils/api";
 
-const formSchema = z.object({
-  key: z
-    .string()
-    .min(2, "key 长度必须在 2-50 之间")
-    .max(50, "key 长度必须在 2-50 之间")
-    .regex(/^[a-zA-Z0-9]+$/, "key 只能包含英文和数字"),
-  name: z.string().min(1, "名称不能为空"),
-  globalConfig: z
-    .string()
-    .nullable()
-    .transform((val) => val?.trim() ?? null)
-    .refine((val) => {
-      if (!val) return true;
-      try {
-        parseYaml(val);
-        return true;
-      } catch {
-        return false;
-      }
-    }, "全局配置必须是有效的 YAML 格式"),
-  rules: z
-    .string()
-    .nullable()
-    .transform((val) => val?.trim() ?? null)
-    .refine((val) => isClashRulesYamlList(val), "规则必须是 YAML list"),
-});
-
-type FormData = z.infer<typeof formSchema>;
+type FormData = z.infer<typeof clashConfigFormSchema>;
 
 interface ClashConfigFormProps {
   config?: ClashConfig;
@@ -52,34 +27,13 @@ interface ClashConfigFormProps {
 export function ClashConfigForm({ config, onSuccess }: ClashConfigFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
-
-  // 使用TRPC mutations
-  const createClashConfigMutation = api.clashConfig.create.useMutation({
-    onSuccess: () => {
-      toast.success("创建成功");
-      void utils.clashConfig.invalidate();
-      router.refresh();
-      onSuccess?.();
-    },
-    onError: (error) => {
-      toast.error(`创建失败: ${error.message}`);
-    },
-  });
-
-  const updateClashConfigMutation = api.clashConfig.update.useMutation({
-    onSuccess: () => {
-      toast.success("更新成功");
-      void utils.clashConfig.invalidate();
-      router.refresh();
-      onSuccess?.();
-    },
-    onError: (error) => {
-      toast.error(`更新失败: ${error.message}`);
-    },
-  });
+  const sectionId = useId();
+  const savingRef = useRef(false);
+  const createClashConfigMutation = api.clashConfig.create.useMutation();
+  const updateClashConfigMutation = api.clashConfig.update.useMutation();
 
   const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(clashConfigFormSchema),
     defaultValues: {
       key: config?.key ?? "",
       name: config?.name ?? "",
@@ -87,78 +41,123 @@ export function ClashConfigForm({ config, onSuccess }: ClashConfigFormProps) {
       rules: config?.rules ?? "",
     },
   });
+  const isPending = form.formState.isSubmitting || createClashConfigMutation.isPending || updateClashConfigMutation.isPending;
+  const requestClose = usePopupSheetFormState({ isDirty: form.formState.isDirty, isPending });
 
-  function onSubmit(data: FormData) {
-    if (config) {
-      updateClashConfigMutation.mutate({
-        id: config.id,
-        data: data,
-      });
-    } else {
-      createClashConfigMutation.mutate(data);
+  async function onSubmit(data: FormData) {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    form.clearErrors("root");
+    try {
+      const saved = config ? await updateClashConfigMutation.mutateAsync({ id: config.id, data }) : await createClashConfigMutation.mutateAsync(data);
+      await Promise.allSettled([utils.clashConfig.invalidate(), utils.subscription.invalidate()]);
+      router.refresh();
+      toast.success(config ? "Clash 配置更新成功" : "Clash 配置创建成功");
+      form.reset({ key: saved.key, name: saved.name, globalConfig: saved.globalConfig ?? "", rules: saved.rules ?? "" });
+      onSuccess?.();
+    } catch {
+      const message = "保存失败，请确认 Key 未重复，或稍后重试。";
+      form.setError("root", { message });
+      toast.error(message);
+    } finally {
+      savingRef.current = false;
     }
   }
 
-  const isPending = createClashConfigMutation.isPending || updateClashConfigMutation.isPending;
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="key"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Key</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="仅支持英文和数字" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-full flex-col gap-6">
+        <div className="space-y-8">
+          <section aria-labelledby={`${sectionId}-basic`} className="space-y-4">
+            <h2 id={`${sectionId}-basic`} className="text-base font-semibold">
+              基本信息
+            </h2>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>配置名称（必填）</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="例如：日常使用" aria-required="true" disabled={isPending} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="key"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Key（必填）</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="例如：daily01" aria-required="true" disabled={isPending} />
+                  </FormControl>
+                  <FormDescription>2–50 个英文字母或数字，用于区分配置，须保持唯一。</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </section>
+          <section aria-labelledby={`${sectionId}-global`} className="space-y-4 border-t pt-6">
+            <div className="space-y-1">
+              <h2 id={`${sectionId}-global`} className="text-base font-semibold">
+                全局配置
+              </h2>
+              <p className="text-sm text-muted-foreground">合并时替换订阅中的同名配置项，其余配置项保留。</p>
+            </div>
+            <FormField
+              control={form.control}
+              name="globalConfig"
+              render={({ field: { value, ...field } }) => (
+                <FormItem>
+                  <FormLabel>YAML 配置（可选）</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} value={value ?? ""} placeholder={"# YAML 格式\nmode: rule\nlog-level: info"} className="font-mono" rows={8} disabled={isPending} />
+                  </FormControl>
+                  <FormDescription>留空则保留原订阅的全局配置。格式错误会提示所在行、列。</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </section>
+          <section aria-labelledby={`${sectionId}-rules`} className="space-y-4 border-t pt-6">
+            <div className="space-y-1">
+              <h2 id={`${sectionId}-rules`} className="text-base font-semibold">
+                规则
+              </h2>
+              <p className="text-sm text-muted-foreground">规则会添加到原订阅规则之前，按填写顺序匹配。</p>
+            </div>
+            <FormField
+              control={form.control}
+              name="rules"
+              render={({ field: { value, ...field } }) => (
+                <FormItem>
+                  <FormLabel>规则列表（可选）</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      value={value ?? ""}
+                      placeholder={"# YAML list\n- DOMAIN-SUFFIX,example.com,PROXY\n- GEOIP,CN,DIRECT"}
+                      className="font-mono"
+                      rows={8}
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <FormDescription>每条规则以 - 开头，使用 YAML list；留空则不添加规则。</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </section>
+          {form.formState.errors.root?.message && (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{form.formState.errors.root.message}</AlertDescription>
+            </Alert>
           )}
-        />
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>名称</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="globalConfig"
-          render={({ field: { value, ...field } }) => (
-            <FormItem>
-              <FormLabel>全局配置</FormLabel>
-              <FormControl>
-                <Textarea {...field} value={value ?? ""} placeholder="# YAML 格式" className="font-mono" rows={10} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="rules"
-          render={({ field: { value, ...field } }) => (
-            <FormItem>
-              <FormLabel>规则</FormLabel>
-              <FormControl>
-                <Textarea {...field} value={value ?? ""} placeholder={"# YAML list\n- DOMAIN-SUFFIX,example.com,PROXY\n- GEOIP,CN,DIRECT"} className="font-mono" rows={10} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "保存中..." : "保存"}
-        </Button>
+        </div>
+        <FormActions isPending={isPending} onCancel={requestClose} />
       </form>
     </Form>
   );

@@ -12,12 +12,12 @@ export function CreateSubconverterDialog() {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button size="sm" onClick={() => setOpen(true)}>
         <PlusCircle className="mr-2 h-4 w-4" />
         添加转换器
       </Button>
 
-      <PopupSheet open={open} onOpenChange={setOpen} title="添加订阅转换器">
+      <PopupSheet open={open} onOpenChange={setOpen} title="添加订阅转换器" description="填写服务地址并验证连接，默认转换参数已为你填入。">
         <SubconverterForm onSuccess={() => setOpen(false)} />
       </PopupSheet>
     </>
